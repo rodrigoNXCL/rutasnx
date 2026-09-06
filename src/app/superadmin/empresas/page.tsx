@@ -30,10 +30,14 @@ export default function EmpresasPage() {
   const [showEmpresaModal, setShowEmpresaModal] = useState(false)
   const [editEmpresa, setEditEmpresa] = useState<Empresa | null>(null)
   const [empresaForm, setEmpresaForm] = useState({ nombre: '', rut: '', telefono: '', email: '', activo: true })
+  const [empresaError, setEmpresaError] = useState('')
+  const [empresaSaving, setEmpresaSaving] = useState(false)
 
   const [showAdminModal, setShowAdminModal] = useState<string | null>(null)
   const [editAdmin, setEditAdmin] = useState<Admin | null>(null)
   const [adminForm, setAdminForm] = useState({ nombre: '', email: '', password: '', activo: true })
+  const [adminError, setAdminError] = useState('')
+  const [adminSaving, setAdminSaving] = useState(false)
 
   const [expandedEmpresa, setExpandedEmpresa] = useState<string | null>(null)
 
@@ -87,6 +91,8 @@ export default function EmpresasPage() {
 
   async function guardarEmpresa(e: React.FormEvent) {
     e.preventDefault()
+    setEmpresaError('')
+    setEmpresaSaving(true)
     try {
       const url = editEmpresa ? `/api/empresas/${editEmpresa.id}` : '/api/empresas'
       const method = editEmpresa ? 'PUT' : 'POST'
@@ -100,9 +106,14 @@ export default function EmpresasPage() {
       if (res.ok) {
         setShowEmpresaModal(false)
         fetchEmpresas()
+      } else {
+        const data = await res.json()
+        setEmpresaError(data.error || 'Error al guardar')
       }
     } catch (error) {
-      console.error('Error guardando empresa:', error)
+      setEmpresaError('Error de conexión')
+    } finally {
+      setEmpresaSaving(false)
     }
   }
 
@@ -125,6 +136,8 @@ export default function EmpresasPage() {
 
   async function guardarAdmin(e: React.FormEvent, empresaId: string) {
     e.preventDefault()
+    setAdminError('')
+    setAdminSaving(true)
     try {
       if (editAdmin) {
         const res = await fetch(`/api/empresas/${empresaId}/admins/${editAdmin.id}`, {
@@ -135,6 +148,9 @@ export default function EmpresasPage() {
         if (res.ok) {
           setShowAdminModal(null)
           fetchAdmins(empresaId)
+        } else {
+          const data = await res.json()
+          setAdminError(data.error || 'Error al guardar')
         }
       } else {
         const res = await fetch(`/api/empresas/${empresaId}/admins`, {
@@ -145,10 +161,15 @@ export default function EmpresasPage() {
         if (res.ok) {
           setShowAdminModal(null)
           fetchAdmins(empresaId)
+        } else {
+          const data = await res.json()
+          setAdminError(data.error || 'Error al guardar')
         }
       }
     } catch (error) {
-      console.error('Error guardando admin:', error)
+      setAdminError('Error de conexión')
+    } finally {
+      setAdminSaving(false)
     }
   }
 
@@ -296,6 +317,11 @@ export default function EmpresasPage() {
             <h2 className="text-xl font-bold mb-4 text-slate-900">
               {editEmpresa ? 'Editar Empresa' : 'Nueva Empresa'}
             </h2>
+            {empresaError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+                {empresaError}
+              </div>
+            )}
             <form onSubmit={guardarEmpresa} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Nombre</label>
@@ -356,9 +382,10 @@ export default function EmpresasPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-slate-700"
+                  disabled={empresaSaving}
+                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {editEmpresa ? 'Guardar' : 'Crear'}
+                  {empresaSaving ? 'Guardando...' : (editEmpresa ? 'Guardar' : 'Crear')}
                 </button>
               </div>
             </form>
@@ -372,6 +399,11 @@ export default function EmpresasPage() {
             <h2 className="text-xl font-bold mb-4 text-slate-900">
               {editAdmin ? 'Editar Admin' : 'Nuevo Admin'}
             </h2>
+            {adminError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+                {adminError}
+              </div>
+            )}
             <form onSubmit={(e) => guardarAdmin(e, showAdminModal)} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Nombre</label>
@@ -426,9 +458,10 @@ export default function EmpresasPage() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-slate-700"
+                  disabled={adminSaving}
+                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {editAdmin ? 'Guardar' : 'Crear'}
+                  {adminSaving ? 'Guardando...' : (editAdmin ? 'Guardar' : 'Crear')}
                 </button>
               </div>
             </form>
