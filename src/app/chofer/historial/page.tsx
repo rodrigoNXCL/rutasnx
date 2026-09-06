@@ -55,11 +55,12 @@ export default function ChoferHistorial() {
   }
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('es-CL', {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-CL', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      timeZone: 'America/Santiago',
     })
   }
 

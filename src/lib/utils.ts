@@ -41,3 +41,18 @@ export function formatRUT(rut: string): string {
 export function getChileanTimezone(): string {
   return 'America/Santiago'
 }
+
+export function toChileanDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day, 3, 0, 0)
+  return date.toISOString().split('T')[0]
+}
+
+export function formatDateChile(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00')
+  return date.toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })
+}
+
+export function getTodayChile(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+}

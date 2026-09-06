@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getTodayChile } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -17,7 +18,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
     }
 
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+    const today = getTodayChile()
 
     const { data: viaje, error } = await supabase
       .from('viajes')
