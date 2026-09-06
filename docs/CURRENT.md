@@ -2,7 +2,7 @@
 
 ## Paso Actual del Plan de Desarrollo
 
-**Paso 2** - Funcionalidades core del admin y chofer
+**Paso 3** - Funcionalidades core completadas
 
 ## Estado General
 
@@ -17,14 +17,14 @@
 - [x] Chofer: registro de viajes, historial, gastos con foto
 - [x] Cliente: servicios e informes (placeholders)
 - [x] Landing page pública en `/`
-- [ ] Deploy en Cloudflare Pages (en proceso)
-- [ ] Crear empresa inicial (RCC)
-- [ ] Crear usuario superadmin
+- [x] Deploy en Cloudflare Workers (rutas.nxchile.com)
 
 ## Estructura de Rutas Implementada
 
+- `/` - Landing page pública (NXChile info, links a soluciones)
 - `/auth/login` - Login (público)
 - `/superadmin/dashboard` - Gestión de empresas
+- `/superadmin/empresas` - CRUD empresas
 - `/admin/dashboard` - Dashboard empresa
 - `/admin/camiones` - CRUD camiones
 - `/admin/choferes` - CRUD choferes
@@ -36,9 +36,9 @@
 - `/cliente/servicios` - Consulta de servicios
 - `/cliente/informes` - Descarga de informes
 
-## Asignaciones (modelo de negocio)
+## Modelo de Asignaciones
 
-El admin asigna **un chofer + camión a un servicio** de forma permanente. Un servicio puede tener múltiples asignaciones (distintos turnos o vehículos). Un chofer puede tener múltiples asignaciones (distintos servicios).
+El admin asigna **un chofer + camión a un servicio** de forma permanente.
 
 Tabla `asignaciones`:
 - `chofer_id` → chofer asignado
@@ -50,8 +50,8 @@ Tabla `asignaciones`:
 Flujo chofer:
 1. Ve sus asignaciones activas
 2. Selecciona con cuál trabajar (si tiene varias)
-3. Registra km_inicio, km_termino, observaciones
-4. Registra gastos (combustible, peaje, comida, mecánico, otro)
+3. Registra fecha, km_inicio, km_termino, observaciones
+4. Registra gastos con foto de comprobante (combustible, peaje, comida, mecánico, otro)
 
 ## APIs Implementadas
 
@@ -60,14 +60,18 @@ Flujo chofer:
 - `GET /api/chofer/asignacion` - Asignaciones activas del chofer logueado
 - `POST /api/viajes` - Registra viaje
 - `POST /api/gastos` - Registra gastos de un viaje
+- `POST /api/upload` - Upload de fotos a Supabase Storage
+
+## Deploy
+
+- **URL**: https://rutas.nxchile.com
+- **Plataforma**: Cloudflare Workers (OpenNext adapter)
+- **Repo**: https://github.com/rodrigoNXCL/rutasnx
 
 ## Último Cambio
 
-- Landing page pública con info de NXChile y links a soluciones (gastos.nxchile.com, trans.nxchile.com)
-- Modelo de asignaciones: admin asigna chofer+camión a servicio (no por jornada diaria)
-- Chofer registra gastos con foto de comprobante (upload a Supabase Storage)
-- Repo público en GitHub para deploy en Cloudflare Pages
+Deploy completado en Cloudflare Workers. Plataforma funcionando en producción.
 
 ## Bloqueos
 
-Deploy en Cloudflare Pages - pendiente de verificar build exitoso.
+Ninguno activo.
