@@ -47,20 +47,26 @@ Tabla `asignaciones`:
 - `activo` → true/false para activar/pausar
 - `observaciones` → notas del admin
 
-Flujo chofer:
-1. Ve sus asignaciones activas
-2. Selecciona con cuál trabajar (si tiene varias)
-3. Registra fecha, km_inicio, km_termino, observaciones
-4. Registra gastos con foto de comprobante (combustible, peaje, comida, mecánico, otro)
+## Flujo Chofer (v2)
+
+El chofer trabaja con un flujo de **Iniciar/Terminar Día**:
+
+1. **Iniciar Día** → Ingresa km inicio + foto del cuenta km (bucket `km-fotos`)
+2. **Durante el día** → Registra gastos (combustible, peaje, comida, mecánico, otro) con foto de comprobante (bucket `gastos`)
+3. **Terminar Día** → Ingresa km término + foto de respaldo del cuenta km (bucket `km-fotos`)
+
+Tabla `viajes` actualizada:
+- `foto_km_inicio` → URL de la foto al iniciar
+- `foto_km_termino` → URL de la foto al cerrar
+- `estado` → 'en_curso' | 'terminado'
 
 ## APIs Implementadas
 
-- `GET/POST /api/asignaciones` - Lista y crea asignaciones
-- `PUT/DELETE /api/asignaciones/[id]` - Modifica y elimina
-- `GET /api/chofer/asignacion` - Asignaciones activas del chofer logueado
-- `POST /api/viajes` - Registra viaje
+- `POST /api/viajes/iniciar` - Inicia el día (km inicio + foto km)
+- `GET /api/viajes/hoy` - Obtiene viaje activo del día
+- `PUT /api/viajes/[id]/terminar` - Termina el día (km término + foto + gastos en lote)
 - `POST /api/gastos` - Registra gastos de un viaje
-- `POST /api/upload` - Upload de fotos a Supabase Storage
+- `POST /api/upload` - Upload de fotos (bucket: `gastos` o `km-fotos`)
 
 ## Deploy
 
