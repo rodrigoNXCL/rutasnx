@@ -77,13 +77,20 @@ export default function ChoferRegistro() {
     fotoKmTerminoPreview: null as string | null,
   })
 
+  const [loadingFecha, setLoadingFecha] = useState(false)
+
   const [gastos, setGastos] = useState<GastoForm[]>([])
 
   useEffect(() => {
-    fetchData()
+    const params = new URLSearchParams(window.location.search)
+    const fechaParam = params.get('fecha')
+    if (fechaParam) {
+      onFechaChange(fechaParam)
+    }
+    fetchAsignaciones()
   }, [])
 
-  async function fetchData() {
+  async function fetchAsignaciones() {
     try {
       const [asigRes, viajeRes] = await Promise.all([
         fetch('/api/chofer/asignacion'),
@@ -125,6 +132,53 @@ export default function ChoferRegistro() {
     setAsignacion(asig)
     setError('')
     setSuccess('')
+  }
+
+  async function onFechaChange(newFecha: string) {
+    setForm({ ...form, fecha: newFecha })
+    setLoadingFecha(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await fetch(`/api/viajes/fecha?fecha=${newFecha}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.viaje) {
+          setViajeActual(data.viaje)
+          setForm(prev => ({
+            ...prev,
+            fecha: newFecha,
+            km_inicio: String(data.viaje.km_inicio),
+            km_termino: '',
+            observaciones: data.viaje.observaciones || '',
+            fotoKmInicio: null,
+            fotoKmInicioPreview: data.viaje.foto_km_inicio,
+            fotoKmTermino: null,
+            fotoKmTerminoPreview: data.viaje.foto_km_termino,
+          }))
+          setGastos([])
+        } else {
+          setViajeActual(null)
+          setForm(prev => ({
+            ...prev,
+            fecha: newFecha,
+            km_inicio: '',
+            km_termino: '',
+            observaciones: '',
+            fotoKmInicio: null,
+            fotoKmInicioPreview: null,
+            fotoKmTermino: null,
+            fotoKmTerminoPreview: null,
+          }))
+          setGastos([])
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching viaje:', error)
+    } finally {
+      setLoadingFecha(false)
+    }
   }
 
   function handleFileKmInicioChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -384,7 +438,7 @@ export default function ChoferRegistro() {
   return (
     <div>
       <h1 className="text-xl font-bold mb-4 text-slate-900">
-        {viajeActual ? 'Terminar Día' : 'Iniciar Día'}
+        {loadingFecha ? 'Cargando...' : (viajeActual ? 'Terminar Día' : 'Iniciar Día')}
       </h1>
 
       {error && (
@@ -573,8 +627,8 @@ export default function ChoferRegistro() {
               type="date"
               value={form.fecha}
               max={today}
-              disabled
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 max-w-xs bg-slate-50"
+              onChange={(e) => onFechaChange(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 max-w-xs"
             />
           </div>
 

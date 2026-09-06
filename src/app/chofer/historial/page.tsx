@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 interface Gasto {
   id: string
@@ -13,8 +14,10 @@ interface Viaje {
   id: string
   fecha: string
   km_inicio: number
-  km_termino: number
-  ruta: string | null
+  km_termino: number | null
+  foto_km_inicio: string | null
+  foto_km_termino: string | null
+  estado: string
   observaciones: string | null
   created_at: string
   camiones: { patente: string } | null
@@ -77,21 +80,42 @@ export default function ChoferHistorial() {
           {viajes.map((viaje) => (
             <div key={viaje.id} className="rounded-lg bg-white p-4 shadow">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-slate-900">
-                  {formatDate(viaje.fecha)}
-                </span>
-                <span className="text-sm text-slate-500">
-                  {viaje.camiones?.patente || 'Sin camión'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-slate-900">
+                    {formatDate(viaje.fecha)}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${
+                    viaje.estado === 'en_curso'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {viaje.estado === 'en_curso' ? 'En curso' : 'Terminado'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">
+                    {viaje.camiones?.patente || 'Sin camión'}
+                  </span>
+                  <Link
+                    href={`/chofer/registro?fecha=${viaje.fecha}`}
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-medium underline"
+                  >
+                    {viaje.estado === 'en_curso' ? 'Continuar' : 'Ver/Editar'}
+                  </Link>
+                </div>
               </div>
 
               <div className="text-sm text-slate-600 mb-2">
                 <span className="font-medium">{viaje.km_inicio.toLocaleString('es-CL')} km</span>
                 {' → '}
-                <span className="font-medium">{viaje.km_termino.toLocaleString('es-CL')} km</span>
-                <span className="ml-2 text-emerald-600 font-medium">
-                  +{(viaje.km_termino - viaje.km_inicio).toLocaleString('es-CL')} km
+                <span className="font-medium">
+                  {viaje.km_termino ? `${viaje.km_termino.toLocaleString('es-CL')} km` : '...'}
                 </span>
+                {viaje.km_termino && (
+                  <span className="ml-2 text-emerald-600 font-medium">
+                    +{(viaje.km_termino - viaje.km_inicio).toLocaleString('es-CL')} km
+                  </span>
+                )}
               </div>
 
               {viaje.servicios && (
@@ -100,9 +124,19 @@ export default function ChoferHistorial() {
                 </div>
               )}
 
-              {viaje.ruta && (
-                <div className="text-sm text-slate-500 mb-2">
-                  Ruta: {viaje.ruta}
+              {viaje.foto_km_inicio && (
+                <div className="text-sm mb-2">
+                  <a href={viaje.foto_km_inicio} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                    📷 Foto km inicio
+                  </a>
+                </div>
+              )}
+
+              {viaje.foto_km_termino && (
+                <div className="text-sm mb-2">
+                  <a href={viaje.foto_km_termino} target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">
+                    📷 Foto km término
+                  </a>
                 </div>
               )}
 
