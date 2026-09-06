@@ -1,4 +1,2 @@
 name = "rutasnx"
-
-[assets]
-directory = ".next"
+pages_build_output_dir = ".next"
