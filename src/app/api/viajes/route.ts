@@ -2,6 +2,43 @@ import { NextResponse } from 'next/server'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+export async function GET() {
+  try {
+    const session = await requireChofer()
+    const supabase = createAdminClient()
+
+    const { data: chofer } = await supabase
+      .from('choferes')
+      .select('id')
+      .eq('usuario_id', session.id)
+      .single()
+
+    if (!chofer) {
+      return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
+    }
+
+    const { data: viajes, error } = await supabase
+      .from('viajes')
+      .select(`
+        *,
+        camiones (patente, marca),
+        servicios (nombre),
+        gastos (*)
+      `)
+      .eq('chofer_id', chofer.id)
+      .order('fecha', { ascending: false })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(viajes || [])
+  } catch (error) {
+    console.error('Error:', error)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await requireChofer()
