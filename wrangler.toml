@@ -1,0 +1,4 @@
+name = "rutasnx"
+
+[assets]
+directory = ".next"
