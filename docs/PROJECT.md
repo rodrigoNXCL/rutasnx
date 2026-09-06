@@ -27,7 +27,7 @@ RCC Servicios EIRL.
 | Base de Datos | PostgreSQL (Supabase) |
 | Auth | Auth propia (tabla usuarios) |
 | Storage | Supabase Storage |
-| Deploy | Netlify |
+| Deploy | Cloudflare Pages |
 
 ## Estructura del Proyecto
 
@@ -56,4 +56,4 @@ rutasnx/
 
 ## Estado
 
-v2.0 implementada. SQL ejecutado. Modelo de asignaciones (chofer+camión → servicio) implementado. En desarrollo: funcionalidades core.
+v2.0 implementada. SQL ejecutado. Modelo de asignaciones (chofer+camión → servicio) implementado. Landing page pública. Deploy en Cloudflare Pages en proceso.

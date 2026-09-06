@@ -14,11 +14,12 @@
 - [x] Asignaciones table creada y funcional
 - [x] Superadmin: dashboard, empresas CRUD, admin management
 - [x] Admin: CRUD camiones, choferes, clientes, servicios, asignaciones
-- [x] Chofer: registro de viajes, historial, gastos
+- [x] Chofer: registro de viajes, historial, gastos con foto
 - [x] Cliente: servicios e informes (placeholders)
+- [x] Landing page pública en `/`
+- [ ] Deploy en Cloudflare Pages (en proceso)
 - [ ] Crear empresa inicial (RCC)
 - [ ] Crear usuario superadmin
-- [ ] Configurar Netlify
 
 ## Estructura de Rutas Implementada
 
@@ -62,8 +63,11 @@ Flujo chofer:
 
 ## Último Cambio
 
-Modelo de asignaciones: admin asigna chofer+camión a servicio (no por jornada diaria).
+- Landing page pública con info de NXChile y links a soluciones (gastos.nxchile.com, trans.nxchile.com)
+- Modelo de asignaciones: admin asigna chofer+camión a servicio (no por jornada diaria)
+- Chofer registra gastos con foto de comprobante (upload a Supabase Storage)
+- Repo público en GitHub para deploy en Cloudflare Pages
 
 ## Bloqueos
 
-Ninguno activo.
+Deploy en Cloudflare Pages - pendiente de verificar build exitoso.
