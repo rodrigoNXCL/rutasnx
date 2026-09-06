@@ -11,6 +11,7 @@ export async function POST(request: Request) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const bucket = formData.get('bucket') as string || 'gastos'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(bytes)
 
     const { data, error } = await supabaseAdmin.storage
-      .from('gastos')
+      .from(bucket)
       .upload(fileName, buffer, {
         contentType: file.type,
         upsert: false,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     const { data: { publicUrl } } = supabaseAdmin.storage
-      .from('gastos')
+      .from(bucket)
       .getPublicUrl(fileName)
 
     return NextResponse.json({ url: publicUrl })

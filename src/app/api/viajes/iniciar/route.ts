@@ -1,0 +1,54 @@
+import { NextResponse } from 'next/server'
+import { requireChofer } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+export async function POST(request: Request) {
+  try {
+    const session = await requireChofer()
+    const supabase = createAdminClient()
+
+    const { data: chofer } = await supabase
+      .from('choferes')
+      .select('id')
+      .eq('usuario_id', session.id)
+      .single()
+
+    if (!chofer) {
+      return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
+    }
+
+    const body = await request.json()
+    const { camion_id, servicio_id, fecha, km_inicio, foto_km_inicio } = body
+
+    if (!camion_id || !fecha || km_inicio === undefined) {
+      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+
+    const { data: viaje, error: errorViaje } = await supabase
+      .from('viajes')
+      .insert({
+        empresa_id: session.empresa_id,
+        chofer_id: chofer.id,
+        camion_id,
+        servicio_id: servicio_id || null,
+        fecha,
+        km_inicio,
+        foto_km_inicio: foto_km_inicio || null,
+        estado: 'en_curso',
+      })
+      .select()
+      .single()
+
+    if (errorViaje) {
+      if (errorViaje.code === '23505') {
+        return NextResponse.json({ error: 'Ya existe un viaje para este día' }, { status: 400 })
+      }
+      return NextResponse.json({ error: errorViaje.message }, { status: 500 })
+    }
+
+    return NextResponse.json(viaje)
+  } catch (error) {
+    console.error('Error:', error)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
