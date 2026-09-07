@@ -15,9 +15,10 @@
 - [x] Superadmin: dashboard, empresas CRUD, admin management
 - [x] Admin: CRUD camiones, choferes, clientes, servicios, asignaciones
 - [x] Chofer: registro de viajes, historial, gastos con foto
-- [x] Cliente: servicios e informes (placeholders)
+- [x] Cliente: portal con servicios y rutas en detalle
 - [x] Landing page pública en `/`
-- [x] Deploy en Cloudflare Workers (rutas.nxchile.com)
+- [x] Diseño UI Linear dark en todos los módulos
+- [x] Deploy en Cloudflare Workers (nxrutas.devnx-trans.workers.dev)
 
 ## Estructura de Rutas Implementada
 
@@ -33,8 +34,8 @@
 - `/admin/asignaciones` - Asignar chofer+camión a servicio
 - `/chofer/registro` - Registro de viajes (mobile)
 - `/chofer/historial` - Historial de viajes
-- `/cliente/servicios` - Consulta de servicios
-- `/cliente/informes` - Descarga de informes
+- `/cliente/servicios` - Portal cliente: servicios y rutas expandibles
+- `/cliente/informes` - Descarga de informes (placeholder)
 
 ## Modelo de Asignaciones
 
@@ -67,16 +68,17 @@ Tabla `viajes` actualizada:
 - `PUT /api/viajes/[id]/terminar` - Termina el día (km término + foto + gastos en lote)
 - `POST /api/gastos` - Registra gastos de un viaje
 - `POST /api/upload` - Upload de fotos (bucket: `gastos` o `km-fotos`)
+- `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `clientes.usuario_id`)
 
 ## Deploy
 
-- **URL**: https://rutas.nxchile.com
-- **Plataforma**: Cloudflare Workers (OpenNext adapter)
+- **URL**: https://nxrutas.devnx-trans.workers.dev
+- **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
 
 ## Último Cambio
 
-Deploy completado en Cloudflare Workers. Plataforma funcionando en producción.
+Rediseño Linear dark en toda la app + portal cliente funcional (servicios y rutas con gastos/fotos). Clientes vinculados a sus usuarios con `clientes.usuario_id` (migraciones 003 y 004). Deploy actualizado en nxrutas.
 
 ## Bloqueos
 

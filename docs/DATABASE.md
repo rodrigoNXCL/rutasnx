@@ -16,8 +16,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - [x] Variables de entorno configuradas
 - [x] SQL v2.0 aplicado
 - [x] Tabla asignaciones creada
+- [x] Bucket 'gastos' configurado (políticas públicas de lectura)
+- [x] Columna `clientes.usuario_id` aplicada (migración 003)
+- [x] Backfill clientes ↔ usuarios ejecutado (migración 004)
 - [ ] RLS habilitado
-- [ ] Bucket 'gastos' configurado
 - [ ] Empresa RCC creada
 - [ ] Usuario superadmin creado
 
@@ -25,6 +27,8 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 - `supabase/migrations/001_schema_v2.sql` - Schema completo v2.0
 - `supabase/migrations/002_asignaciones.sql` - Tabla asignaciones
+- `supabase/migrations/003_clientes_usuario_id.sql` - Columna `usuario_id` en clientes
+- `supabase/migrations/004_clientes_backfill_usuario.sql` - Backfill vínculo clientes ↔ usuarios
 
 ## Backups
 

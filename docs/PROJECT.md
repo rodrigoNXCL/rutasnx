@@ -21,13 +21,13 @@ RCC Servicios EIRL.
 
 | Capa | Tecnología |
 |------|------------|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) + vinext |
 | Lenguaje | TypeScript |
-| UI/Estilos | Tailwind CSS |
+| UI/Estilos | Tailwind CSS (diseño "Linear dark") |
 | Base de Datos | PostgreSQL (Supabase) |
 | Auth | Auth propia (tabla usuarios) |
 | Storage | Supabase Storage |
-| Deploy | Cloudflare Workers |
+| Deploy | Cloudflare Workers (worker `nxrutas`) |
 
 ## Estructura del Proyecto
 
@@ -56,10 +56,11 @@ rutasnx/
 
 ## Estado
 
-v2.0 implementada y desplegada en producción (Cloudflare Workers).
-- Landing page pública con info de NXChile
+v2.2 implementada y desplegada en producción (Cloudflare Workers).
+- Rediseño UI completo con estética "Linear dark"
 - Login funcional con auth propia
-- Admin: CRUD completo + asignaciones
-- Chofer: registro de viajes con gastos y foto
+- Admin: CRUD completo + asignaciones + dashboard con detalle de rutas
+- Chofer: registro de viajes con gastos y fotos
+- Cliente: portal con sus servicios y rutas (kilómetros y gastos en detalle)
 - Repo: https://github.com/rodrigoNXCL/rutasnx
-- URL: https://rutas.nxchile.com
+- URL: https://nxrutas.devnx-trans.workers.dev
