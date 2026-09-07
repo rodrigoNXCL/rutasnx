@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Database } from '@/types/database'
 
 export async function PUT(
   request: Request,
@@ -35,7 +36,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Viaje no encontrado' }, { status: 404 })
     }
 
-    const updateData: Record<string, unknown> = {}
+    const updateData: Database['public']['Tables']['viajes']['Update'] = {}
 
     if (km_inicio !== undefined) {
       if (km_termino !== undefined && km_termino < km_inicio) {

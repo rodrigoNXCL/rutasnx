@@ -1,6 +1,5 @@
 import { cookies } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createServerClient } from '@/lib/supabase/server'
 import type { SesionUsuario, Rol } from '@/types/database'
 import type { CookieOptions } from '@supabase/ssr'
 

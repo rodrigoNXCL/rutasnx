@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Database } from '@/types/database'
 
 async function getChoferOwner(): Promise<{ supabase: ReturnType<typeof createAdminClient>; chofer: { id: string } | null }> {
   const session = await requireChofer()
@@ -50,7 +51,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const updateData: Record<string, unknown> = {}
+    const updateData: Database['public']['Tables']['gastos']['Update'] = {}
 
     if (body.tipo !== undefined) updateData.tipo = body.tipo
     if (body.monto !== undefined) updateData.monto = body.monto
