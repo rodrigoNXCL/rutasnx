@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback } from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+interface GastoPeaje {
+  id: string
+  monto: number
+  descripcion: string | null
+  foto_url: string | null
+}
+
 interface RutaInforme {
   servicio: string
   fecha: string
@@ -14,7 +21,9 @@ interface RutaInforme {
   total_km: number
   ruta: string | null
   observaciones: string | null
-  gastos_peaje: { id: string; monto: number; descripcion: string | null }[]
+  foto_km_inicio: string | null
+  foto_km_termino: string | null
+  gastos_peaje: GastoPeaje[]
   total_peaje: number
 }
 
@@ -56,6 +65,7 @@ export default function ClienteInformes() {
   const [cargandoServicios, setCargandoServicios] = useState(true)
   const [error, setError] = useState('')
   const [descargando, setDescargando] = useState<'csv' | 'pdf' | null>(null)
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     async function fetchServicios() {
@@ -96,6 +106,18 @@ export default function ClienteInformes() {
     }
   }, [desde, hasta, servicioId])
 
+  function peajeCSV(r: RutaInforme): string {
+    if (r.gastos_peaje.length === 0) return ''
+    return r.gastos_peaje
+      .map((g) => {
+        let txt = `Peaje: ${g.monto}`
+        if (g.descripcion) txt += ` (${g.descripcion})`
+        if (g.foto_url) txt += ` [${g.foto_url}]`
+        return txt
+      })
+      .join(' | ')
+  }
+
   function handleDescargarCSV() {
     if (rutas.length === 0) return
     setDescargando('csv')
@@ -110,6 +132,9 @@ export default function ClienteInformes() {
       'Km Término',
       'Total Km',
       'Gastos Peaje',
+      'Comprobantes Peaje (URLs)',
+      'Foto Km Inicio URL',
+      'Foto Km Término URL',
       'Ruta',
       'Observaciones',
     ]
@@ -123,6 +148,9 @@ export default function ClienteInformes() {
       r.km_termino != null ? String(r.km_termino) : '',
       String(r.total_km),
       String(r.total_peaje),
+      peajeCSV(r),
+      r.foto_km_inicio || '',
+      r.foto_km_termino || '',
       r.ruta || '',
       r.observaciones || '',
     ])
@@ -153,6 +181,7 @@ export default function ClienteInformes() {
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const pageW = doc.internal.pageSize.getWidth()
+    const pageH = doc.internal.pageSize.getHeight()
 
     doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
@@ -185,19 +214,58 @@ export default function ClienteInformes() {
       margin: { left: 14, right: 14 },
     })
 
-    const total = rutas.reduce((s, r) => s + r.total_peaje, 0)
-    const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    let cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    if (cursor >= pageH - 20) {
+      doc.addPage()
+      cursor = 14
+    }
 
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Detalle de gastos de peaje y evidencias', 14, cursor)
+    cursor += 5
+
+    rutas.forEach((r) => {
+      const resumen = `${r.fecha} - ${r.chofer} / ${r.camion} - ${r.servicio}`
+      const peajeLines = r.gastos_peaje.map((g) => {
+        let txt = `Peaje: ${formatCLP(g.monto)}`
+        if (g.descripcion) txt += ` (${g.descripcion})`
+        if (g.foto_url) txt += ` [${g.foto_url}]`
+        return txt
+      })
+      const evidencia = [
+        `Foto km inicio: ${r.foto_km_inicio || 'sin foto'}`,
+        `Foto km término: ${r.foto_km_termino || 'sin foto'}`,
+      ]
+      const lineas = [resumen, ...(peajeLines.length ? peajeLines : ['Sin gastos de peaje']), ...evidencia]
+      if (r.observaciones) lineas.push(`Observaciones: ${r.observaciones}`)
+
+      autoTable(doc, {
+        startY: cursor,
+        head: [[resumen]],
+        body: lineas.map((l) => [l]),
+        styles: { fontSize: 7, cellPadding: 1 },
+        headStyles: { fillColor: [20, 20, 20], textColor: [255, 255, 255] },
+        margin: { left: 14, right: 14 },
+      })
+      cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4
+      if (cursor >= pageH - 20) {
+        doc.addPage()
+        cursor = 14
+      }
+    })
+
+    const total = rutas.reduce((s, r) => s + r.total_peaje, 0)
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.text(`Total gastos peaje: ${formatCLP(total)}`, 14, finalY)
+    doc.text(`Total gastos peaje: ${formatCLP(total)}`, 14, pageH - 12)
 
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     doc.text(
       `rutasNX - ${new Date().toLocaleDateString('es-CL', { timeZone: 'America/Santiago' })}`,
       pageW - 14,
-      doc.internal.pageSize.getHeight() - 10,
+      pageH - 12,
       { align: 'right' }
     )
 
@@ -307,7 +375,7 @@ export default function ClienteInformes() {
             </div>
 
             <div className="rounded-xl border overflow-hidden" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
-              <div className="hidden md:grid grid-cols-[1fr_1.3fr_1fr_0.8fr_0.7fr_0.7fr_0.7fr_1fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
+              <div className="hidden md:grid grid-cols-[1fr_1.3fr_1fr_0.8fr_0.7fr_0.7fr_0.7fr_1fr_0.7fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
                 <span>Fecha</span>
                 <span>Servicio</span>
                 <span>Chofer</span>
@@ -316,47 +384,123 @@ export default function ClienteInformes() {
                 <span>Km Término</span>
                 <span>Total Km</span>
                 <span>Peaje</span>
+                <span></span>
               </div>
 
-              {rutas.map((r, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-2 md:grid-cols-[1fr_1.3fr_1fr_0.8fr_0.7fr_0.7fr_0.7fr_1fr] gap-2 md:gap-4 px-5 py-3.5 border-b border-zinc-800 last:border-b-0 items-center"
-                >
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Fecha</span>
-                    <span className="text-sm text-white">{toChileanDate(r.fecha)}</span>
+              {rutas.map((r, i) => {
+                const abierta = !!expandidos[i]
+                return (
+                  <div key={i} className="border-b border-zinc-800 last:border-b-0">
+                    <button
+                      onClick={() => setExpandidos((prev) => ({ ...prev, [i]: !prev[i] }))}
+                      className="w-full grid grid-cols-2 md:grid-cols-[1fr_1.3fr_1fr_0.8fr_0.7fr_0.7fr_0.7fr_1fr_0.7fr] gap-2 md:gap-4 px-5 py-3.5 text-left items-center hover:bg-white/[0.02]"
+                    >
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Fecha</span>
+                        <span className="text-sm text-white">{toChileanDate(r.fecha)}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Servicio</span>
+                        <span className="text-sm text-zinc-400">{r.servicio}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Chofer</span>
+                        <span className="text-sm text-zinc-400">{r.chofer}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Camión</span>
+                        <span className="text-sm text-zinc-400">{r.camion}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Km Inicio</span>
+                        <span className="text-sm text-zinc-400">{r.km_inicio.toLocaleString('es-CL')}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Km Término</span>
+                        <span className="text-sm text-zinc-400">{r.km_termino != null ? r.km_termino.toLocaleString('es-CL') : '—'}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Total Km</span>
+                        <span className="text-sm font-medium text-emerald-400">+{r.total_km.toLocaleString('es-CL')}</span>
+                      </div>
+                      <div>
+                        <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Peaje</span>
+                        <span className="text-sm text-zinc-400">{r.total_peaje > 0 ? formatCLP(r.total_peaje) : '—'}</span>
+                      </div>
+                      <div className="flex justify-end">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          className={`text-zinc-500 transition-transform ${abierta ? 'rotate-180' : ''}`}
+                        >
+                          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {abierta && (
+                      <div className="px-5 py-4 border-t border-zinc-800 bg-white/[0.02] space-y-4">
+                        <div>
+                          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1">Evidencia fotográfica</p>
+                          <div className="space-y-1 text-xs">
+                            {r.foto_km_inicio ? (
+                              <a href={r.foto_km_inicio} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline break-all">
+                                Foto km inicio: {r.foto_km_inicio}
+                              </a>
+                            ) : (
+                              <span className="text-zinc-600">Foto km inicio: sin foto</span>
+                            )}
+                            {r.foto_km_termino ? (
+                              <a href={r.foto_km_termino} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline block break-all">
+                                Foto km término: {r.foto_km_termino}
+                              </a>
+                            ) : (
+                              <span className="text-zinc-600 block">Foto km término: sin foto</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                            Gastos de peaje ({r.gastos_peaje.length}) - Total {formatCLP(r.total_peaje)}
+                          </p>
+                          {r.gastos_peaje.length === 0 ? (
+                            <p className="text-xs text-zinc-600">Sin gastos de peaje</p>
+                          ) : (
+                            <div className="grid gap-2">
+                              {r.gastos_peaje.map((g) => (
+                                <div key={g.id} className="rounded-lg p-3" style={{ background: '#1A1A1A' }}>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm text-white">Peaje</p>
+                                      {g.descripcion && <p className="text-xs text-zinc-500">{g.descripcion}</p>}
+                                    </div>
+                                    <span className="text-sm font-medium text-white">{formatCLP(g.monto)}</span>
+                                  </div>
+                                  {g.foto_url ? (
+                                    <a
+                                      href={g.foto_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="mt-2 inline-block text-xs text-emerald-400 hover:underline break-all"
+                                    >
+                                      Comprobante: {g.foto_url}
+                                    </a>
+                                  ) : (
+                                    <p className="mt-2 text-xs text-zinc-600">Comprobante: sin foto</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Servicio</span>
-                    <span className="text-sm text-zinc-400">{r.servicio}</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Chofer</span>
-                    <span className="text-sm text-zinc-400">{r.chofer}</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Camión</span>
-                    <span className="text-sm text-zinc-400">{r.camion}</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Km Inicio</span>
-                    <span className="text-sm text-zinc-400">{r.km_inicio.toLocaleString('es-CL')}</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Km Término</span>
-                    <span className="text-sm text-zinc-400">{r.km_termino != null ? r.km_termino.toLocaleString('es-CL') : '—'}</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Total Km</span>
-                    <span className="text-sm font-medium text-emerald-400">+{r.total_km.toLocaleString('es-CL')}</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Peaje</span>
-                    <span className="text-sm text-zinc-400">{r.total_peaje > 0 ? formatCLP(r.total_peaje) : '—'}</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
 
               <div className="px-5 py-3 border-t border-zinc-700 flex items-center justify-between" style={{ background: '#1A1A1A' }}>
                 <span className="text-sm font-medium text-zinc-400">

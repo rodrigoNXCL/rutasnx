@@ -52,6 +52,17 @@
 - El chofer puede editar rutas terminadas desde el historial: km inicio/término, observaciones, fotos de km y **CRUD de gastos** (`POST/PATCH/DELETE /api/gastos[/id]`).
 - Ownership verificado por sesión: los endpoints de chofer resuelven `choferes.usuario_id` y validan que el recurso pertenezca al viaje del chofer. La edición guarda evidencia fotográfica de comprobantes (bucket `gastos`/`km-fotos`).
 
+### Informes PDF/CSV
+- Los informes abarcan **solo rutas terminadas** (`viajes.estado = 'terminado'`).
+- **Cliente** (`/cliente/informes` + `GET /api/cliente/informes`): ve solo sus rutas y gastos de tipo `peaje` (misma regla que el portal).
+- **Admin** (`/admin/reportes` + `GET /api/admin/informes`): ve todas las rutas de su empresa y el **detalle completo de gastos** (todos los tipos), e incluye **URLs de imágenes** (`foto_km_inicio`, `foto_km_termino`, `foto_url` de gastos) en el detalle, el CSV y el PDF.
+- Exportación con `jspdf` + `jspdf-autotable` (PDF) y CSV descargable (BOM UTF-8).
+- Filtrado por periodo (fechas Chile), con filtros opcionales por servicio/chófer/camión en el admin.
+- Las URLs de las imágenes de respaldo se **acortan** en el reporte (`/s/{bucket}/{file}` → redirect 302 al storage real) para no ocupar espacio en el CSV/PDF; así cliente y admin pueden descargar cada respaldo directamente.
+
+### Usuarios Activos (Admin)
+- `/admin/usuarios` + `GET /api/admin/usuarios`: lista las cuentas de login (`usuarios`) de la empresa, con toggle "Solo activos" y filtro por rol. Muestra `ultimo_login` para consultar actividad.
+
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
 - `/admin/*` → admin, superadmin
@@ -71,3 +82,6 @@
 | 2026-09-06 | Migración a vinext + worker `nxrutas` | Deploy Next.js en Cloudflare Workers |
 | 2026-09-06 | Cliente ve solo gastos de tipo `peaje` | El mandante consulta solo la información relevante de sus rutas; costos internos quedan fuera del portal |
 | 2026-09-06 | Edición de rutas por el chofer (km, fotos, obs y CRUD gastos) | Corrección de registros con evidencia fotográfica, con ownership verificado |
+| 2026-09-07 | Informes PDF/CSV de rutas (cliente solo peaje; admin todos los gastos + URLs de imágenes) | El admin requiere el detalle completo de gastos para rendición interna; el cliente solo lo relevante de sus rutas |
+| 2026-09-07 | Consulta de usuarios activos en admin | Permite al admin ver las cuentas de login de su empresa y su actividad |
+| 2026-09-07 | Regenerar `package-lock.json` completo para CI Linux (`@emnapi/*`) | `npm ci` de Cloudflare fallaba por faltar deps optional de sharp solo en Linux/wasm |

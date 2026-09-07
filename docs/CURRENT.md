@@ -19,6 +19,8 @@
 - [x] Landing page pública en `/`
 - [x] Diseño UI Linear dark en todos los módulos
 - [x] Deploy en Cloudflare Workers (nxrutas.devnx-trans.workers.dev)
+- [x] Informes PDF/CSV en portal cliente y admin (rutas terminadas)
+- [x] Admin: consulta de usuarios activos
 
 ## Estructura de Rutas Implementada
 
@@ -32,10 +34,12 @@
 - `/admin/clientes` - CRUD clientes
 - `/admin/servicios` - CRUD servicios
 - `/admin/asignaciones` - Asignar chofer+camión a servicio
+- `/admin/reportes` - Reportes PDF/CSV (rutas terminadas, con imágenes y detalle de gastos)
+- `/admin/usuarios` - Consulta de usuarios activos de la empresa
 - `/chofer/registro` - Registro de viajes (mobile)
 - `/chofer/historial` - Historial de viajes
 - `/cliente/servicios` - Portal cliente: servicios y rutas expandibles
-- `/cliente/informes` - Descarga de informes (placeholder)
+- `/cliente/informes` - Informes PDF/CSV de rutas terminadas
 
 ## Modelo de Asignaciones
 
@@ -75,6 +79,10 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 - `DELETE /api/gastos/[id]` - Elimina un gasto
 - `POST /api/upload` - Upload de fotos (bucket: `gastos` o `km-fotos`)
 - `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `clientes.usuario_id`, gastos filtrados solo a `peaje`)
+- `GET /api/cliente/informes` - Informe de rutas terminadas del cliente en un periodo (solo gastos `peaje`)
+- `GET /api/admin/informes` - Informe de rutas terminadas de la empresa en un periodo (todos los gastos + URLs de imágenes km/gastos)
+- `GET /api/admin/usuarios` - Usuarios (cuentas de login) de la empresa, con filtro por activos/rol
+- `GET /s/[bucket]/[file]` - Redirect a la imagen real en Supabase Storage (URL corta de respaldos)
 
 ## Deploy
 
@@ -84,7 +92,7 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 
 ## Último Cambio
 
-Rediseño Linear dark en toda la app + portal cliente funcional (servicios y rutas con gastos/fotos). Clientes vinculados a sus usuarios con `clientes.usuario_id` (migraciones 003 y 004). Deploy actualizado en nxrutas.
+Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (`/admin/reportes`). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
 
 Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede editar rutas terminadas (km, observaciones, fotos y CRUD de gastos).
 

@@ -39,9 +39,9 @@ rutasnx/
 │   │   ├── api/auth/logout/     # Logout API
 │   │   ├── auth/login/         # Login page
 │   │   ├── superadmin/          # Dashboard super-admin
-│   │   ├── admin/              # Dashboard admin
+│   │   ├── admin/              # Dashboard admin (+ reportes, usuarios)
 │   │   ├── chofer/             # Interfaz móvil chofer
-│   │   ├── cliente/            # Portal cliente
+│   │   ├── cliente/            # Portal cliente (+ informes)
 │   │   └── page.tsx
 │   ├── lib/
 │   │   ├── supabase/           # Clientes Supabase
@@ -56,11 +56,13 @@ rutasnx/
 
 ## Estado
 
-v2.2 implementada y desplegada en producción (Cloudflare Workers).
+v2.3 implementada y desplegada en producción (Cloudflare Workers).
 - Rediseño UI completo con estética "Linear dark"
 - Login funcional con auth propia
-- Admin: CRUD completo + asignaciones + dashboard con detalle de rutas
+- Admin: CRUD completo + asignaciones + dashboard con detalle de rutas + reportes PDF/CSV + usuarios activos
 - Chofer: registro de viajes con gastos y fotos
-- Cliente: portal con sus servicios y rutas (kilómetros y gastos en detalle)
+- Cliente: portal con sus servicios y rutas (kilómetros y gastos en detalle) + informes PDF/CSV
+- Informes: solo rutas terminadas; el cliente solo gastos `peaje`, el admin todos los gastos y URLs de imágenes
+- Tipos TypeScript alineados al esquema real (sin `never`)
 - Repo: https://github.com/rodrigoNXCL/rutasnx
 - URL: https://nxrutas.devnx-trans.workers.dev

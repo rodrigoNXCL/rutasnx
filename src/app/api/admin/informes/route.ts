@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { shortenStorageUrl } from '@/lib/short-url'
 
 export async function GET(request: Request) {
   try {
@@ -65,6 +66,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    const baseUrl = new URL(request.url).origin
+
     const rutas = (viajes || []).map((viaje) => ({
       id: viaje.id,
       fecha: viaje.fecha,
@@ -81,13 +84,13 @@ export async function GET(request: Request) {
       total_km: viaje.km_termino != null ? viaje.km_termino - viaje.km_inicio : 0,
       ruta: viaje.ruta,
       observaciones: viaje.observaciones,
-      foto_km_inicio: viaje.foto_km_inicio,
-      foto_km_termino: viaje.foto_km_termino,
+      foto_km_inicio: shortenStorageUrl(viaje.foto_km_inicio, baseUrl),
+      foto_km_termino: shortenStorageUrl(viaje.foto_km_termino, baseUrl),
       gastos: (viaje.gastos || []).map((g) => ({
         tipo: g.tipo,
         monto: g.monto,
         descripcion: g.descripcion,
-        foto_url: g.foto_url,
+        foto_url: shortenStorageUrl(g.foto_url, baseUrl),
       })),
       total_gastos: (viaje.gastos || []).reduce((sum, g) => sum + g.monto, 0),
     }))

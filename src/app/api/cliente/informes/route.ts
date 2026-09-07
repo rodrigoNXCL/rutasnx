@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { shortenStorageUrl } from '@/lib/short-url'
 
 export async function GET(request: Request) {
   try {
@@ -53,9 +54,11 @@ export async function GET(request: Request) {
           ruta,
           observaciones,
           estado,
+          foto_km_inicio,
+          foto_km_termino,
           camiones (patente),
           choferes (usuarios (nombre)),
-          gastos (id, tipo, monto, descripcion)
+          gastos (id, tipo, monto, descripcion, foto_url)
         )
       `)
       .eq('cliente_id', cliente.id)
@@ -75,6 +78,8 @@ export async function GET(request: Request) {
       return Response.json({ error: error.message }, { status: 500 })
     }
 
+    const baseUrl = new URL(request.url).origin
+
     const rutas = (servicios || []).flatMap((servicio) =>
       (servicio.viajes || []).map((viaje) => ({
         servicio: servicio.nombre,
@@ -86,7 +91,16 @@ export async function GET(request: Request) {
         total_km: viaje.km_termino != null ? viaje.km_termino - viaje.km_inicio : 0,
         ruta: viaje.ruta,
         observaciones: viaje.observaciones,
-        gastos_peaje: (viaje.gastos || []).filter((g) => g.tipo === 'peaje'),
+        foto_km_inicio: shortenStorageUrl(viaje.foto_km_inicio, baseUrl),
+        foto_km_termino: shortenStorageUrl(viaje.foto_km_termino, baseUrl),
+        gastos_peaje: (viaje.gastos || [])
+          .filter((g) => g.tipo === 'peaje')
+          .map((g) => ({
+            id: g.id,
+            monto: g.monto,
+            descripcion: g.descripcion,
+            foto_url: shortenStorageUrl(g.foto_url, baseUrl),
+          })),
         total_peaje: (viaje.gastos || [])
           .filter((g) => g.tipo === 'peaje')
           .reduce((sum, g) => sum + g.monto, 0),
