@@ -26,10 +26,41 @@ interface Viaje {
   gastos: Gasto[]
 }
 
+interface GastoEdit {
+  id: string | null
+  tipo: string
+  monto: string
+  descripcion: string
+  foto: File | null
+  fotoPreview: string | null
+  fotoUrl: string | null
+  eliminar: boolean
+}
+
+const TIPO_GASTO = [
+  { value: 'combustible', label: 'Combustible' },
+  { value: 'peaje', label: 'Peaje' },
+  { value: 'comida', label: 'Comida' },
+  { value: 'mecanico', label: 'Mecánico' },
+  { value: 'otro', label: 'Otro' },
+]
+
 export default function ChoferHistorial() {
   const [viajes, setViajes] = useState<Viaje[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedViaje, setExpandedViaje] = useState<string | null>(null)
+
+  const [editando, setEditando] = useState<Viaje | null>(null)
+  const [editKmInicio, setEditKmInicio] = useState('')
+  const [editKmTermino, setEditKmTermino] = useState('')
+  const [editObs, setEditObs] = useState('')
+  const [editFotoInicio, setEditFotoInicio] = useState<File | null>(null)
+  const [editFotoInicioPrev, setEditFotoInicioPrev] = useState<string | null>(null)
+  const [editFotoTermino, setEditFotoTermino] = useState<File | null>(null)
+  const [editFotoTerminoPrev, setEditFotoTerminoPrev] = useState<string | null>(null)
+  const [gastosEdit, setGastosEdit] = useState<GastoEdit[]>([])
+  const [saving, setSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   useEffect(() => {
     fetchViajes()
@@ -72,6 +103,162 @@ export default function ChoferHistorial() {
       month: 'short',
       timeZone: 'America/Santiago',
     })
+  }
+
+  function openEditar(viaje: Viaje) {
+    setEditando(viaje)
+    setEditKmInicio(String(viaje.km_inicio))
+    setEditKmTermino(viaje.km_termino != null ? String(viaje.km_termino) : '')
+    setEditObs(viaje.observaciones || '')
+    setEditFotoInicio(null)
+    setEditFotoInicioPrev(null)
+    setEditFotoTermino(null)
+    setEditFotoTerminoPrev(null)
+    setGastosEdit(
+      (viaje.gastos || []).map((g) => ({
+        id: g.id,
+        tipo: g.tipo,
+        monto: String(g.monto),
+        descripcion: g.descripcion || '',
+        foto: null,
+        fotoPreview: null,
+        fotoUrl: g.foto_url,
+        eliminar: false,
+      }))
+    )
+    setEditError('')
+  }
+
+  function updateGasto(index: number, patch: Partial<GastoEdit>) {
+    setGastosEdit((prev) => prev.map((g, i) => (i === index ? { ...g, ...patch } : g)))
+  }
+
+  function addGastoEditable() {
+    setGastosEdit((prev) => [
+      ...prev,
+      { id: null, tipo: 'peaje', monto: '', descripcion: '', foto: null, fotoPreview: null, fotoUrl: null, eliminar: false },
+    ])
+  }
+
+  async function uploadFoto(file: File, bucket: string): Promise<string | null> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('bucket', bucket)
+
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      return data.url
+    }
+    return null
+  }
+
+  async function guardarEdicion() {
+    if (!editando) return
+    setSaving(true)
+    setEditError('')
+
+    try {
+      let fotoInicioUrl: string | null = null
+      let fotoTerminoUrl: string | null = null
+      if (editFotoInicio) {
+        fotoInicioUrl = await uploadFoto(editFotoInicio, 'km-fotos')
+        if (!fotoInicioUrl) {
+          setEditError('Error subiendo foto km inicio')
+          return
+        }
+      }
+      if (editFotoTermino) {
+        fotoTerminoUrl = await uploadFoto(editFotoTermino, 'km-fotos')
+        if (!fotoTerminoUrl) {
+          setEditError('Error subiendo foto km término')
+          return
+        }
+      }
+
+      const kmInicio = parseInt(editKmInicio)
+      const kmTermino = editKmTermino ? parseInt(editKmTermino) : null
+
+      if (kmTermino != null && kmTermino < kmInicio) {
+        setEditError('Km término debe ser mayor o igual a km inicio')
+        return
+      }
+
+      const viajeBody: Record<string, unknown> = {
+        km_inicio: kmInicio,
+        km_termino: kmTermino,
+        observaciones: editObs || null,
+      }
+      if (fotoInicioUrl) viajeBody.foto_km_inicio = fotoInicioUrl
+      if (fotoTerminoUrl) viajeBody.foto_km_termino = fotoTerminoUrl
+
+      const resViaje = await fetch(`/api/viajes/${editando.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(viajeBody),
+      })
+
+      if (!resViaje.ok) {
+        const data = await resViaje.json().catch(() => ({}))
+        setEditError(data.error || 'Error guardando la ruta')
+        return
+      }
+
+      for (const g of gastosEdit) {
+        if (g.eliminar) {
+          if (g.id) {
+            await fetch(`/api/gastos/${g.id}`, { method: 'DELETE' })
+          }
+          continue
+        }
+
+        const monto = parseInt(g.monto)
+        if (!monto) continue
+
+        let fotoUrl = g.fotoUrl
+        if (g.foto) {
+          const nueva = await uploadFoto(g.foto, 'gastos')
+          if (!nueva) {
+            setEditError('Error subiendo foto del gasto')
+            return
+          }
+          fotoUrl = nueva
+        }
+
+        const body = {
+          tipo: g.tipo,
+          monto,
+          descripcion: g.descripcion || null,
+          foto_url: fotoUrl,
+        }
+
+        if (g.id) {
+          await fetch(`/api/gastos/${g.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+        } else {
+          await fetch('/api/gastos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ viaje_id: editando.id, ...body }),
+          })
+        }
+      }
+
+      setEditando(null)
+      fetchViajes()
+    } catch (error) {
+      console.error('Error guardando edición:', error)
+      setEditError('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) {
@@ -134,14 +321,26 @@ export default function ChoferHistorial() {
 
                 {expandedViaje === viaje.id && (
                   <div className="border-t px-5 py-5" style={{ borderColor: '#2A2A2A' }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">{formatDate(viaje.fecha)}</p>
+                        {viaje.servicios && <p className="text-sm text-zinc-400 mt-0.5">{viaje.servicios.nombre}</p>}
+                      </div>
+                      <button
+                        onClick={() => openEditar(viaje)}
+                        className="inline-flex items-center gap-1.5 text-xs text-zinc-300 border border-zinc-700 rounded-lg px-3 py-1.5 hover:bg-zinc-800 transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Editar ruta
+                      </button>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Viaje</h4>
                         <div className="space-y-2 text-sm">
-                          <p className="text-zinc-400">{formatDate(viaje.fecha)}</p>
-                          {viaje.servicios && (
-                            <p className="text-zinc-400">{viaje.servicios.nombre}</p>
-                          )}
                           <div className="pt-2">
                             <p className="text-zinc-500">Kilometraje</p>
                             <p className="text-white font-medium">{viaje.km_inicio.toLocaleString('es-CL')} km</p>
@@ -152,6 +351,9 @@ export default function ChoferHistorial() {
                               </>
                             )}
                           </div>
+                          {viaje.observaciones && (
+                            <p className="text-zinc-500">Obs: <span className="text-zinc-300">{viaje.observaciones}</span></p>
+                          )}
                         </div>
 
                         <div className="flex gap-2 pt-2">
@@ -238,6 +440,220 @@ export default function ChoferHistorial() {
           </div>
         )}
       </div>
+
+      {editando && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setEditando(null)}>
+          <div
+            className="rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border"
+            style={{ background: '#141414', borderColor: '#2A2A2A' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-semibold text-white mb-5">Editar ruta</h2>
+
+            {editError && (
+              <div className="mb-4 p-4 rounded-xl border" style={{ background: '#2D1515', borderColor: '#5D2020' }}>
+                <p className="text-sm text-red-400">{editError}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Km inicio</label>
+                <input
+                  type="number"
+                  value={editKmInicio}
+                  onChange={(e) => setEditKmInicio(e.target.value)}
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Km término</label>
+                <input
+                  type="number"
+                  value={editKmTermino}
+                  onChange={(e) => setEditKmTermino(e.target.value)}
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Observaciones</label>
+              <textarea
+                value={editObs}
+                onChange={(e) => setEditObs(e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Foto km inicio</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null
+                    setEditFotoInicio(f)
+                    setEditFotoInicioPrev(f ? URL.createObjectURL(f) : null)
+                  }}
+                  className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
+                />
+                {editFotoInicioPrev ? (
+                  <img src={editFotoInicioPrev} alt="Preview" className="mt-2 rounded-lg max-h-24 object-cover" />
+                ) : editando.foto_km_inicio ? (
+                  <a
+                    href={editando.foto_km_inicio}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 mt-2 inline-block"
+                  >
+                    Foto actual
+                  </a>
+                ) : (
+                  <p className="text-xs text-zinc-600 mt-2">Sin foto</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Foto km término</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null
+                    setEditFotoTermino(f)
+                    setEditFotoTerminoPrev(f ? URL.createObjectURL(f) : null)
+                  }}
+                  className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
+                />
+                {editFotoTerminoPrev ? (
+                  <img src={editFotoTerminoPrev} alt="Preview" className="mt-2 rounded-lg max-h-24 object-cover" />
+                ) : editando.foto_km_termino ? (
+                  <a
+                    href={editando.foto_km_termino}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 mt-2 inline-block"
+                  >
+                    Foto actual
+                  </a>
+                ) : (
+                  <p className="text-xs text-zinc-600 mt-2">Sin foto</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-xl p-4 border mb-4" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-white">Gastos</p>
+                <button
+                  type="button"
+                  onClick={addGastoEditable}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                >
+                  + Agregar gasto
+                </button>
+              </div>
+
+              {gastosEdit.length === 0 && (
+                <p className="text-xs text-zinc-500 text-center py-3">Sin gastos</p>
+              )}
+
+              {gastosEdit.map((gasto, index) => (
+                <div key={index} className="rounded-lg p-4 mb-3" style={{ background: '#1A1A1A' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-zinc-500">Gasto {index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => updateGasto(index, { eliminar: !gasto.eliminar })}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      {gasto.eliminar ? 'Restaurar' : 'Eliminar'}
+                    </button>
+                  </div>
+
+                  {gasto.eliminar ? (
+                    <p className="text-xs text-red-400">Se eliminará al guardar</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <select
+                        value={gasto.tipo}
+                        onChange={(e) => updateGasto(index, { tipo: e.target.value })}
+                        className="w-full rounded-lg border px-3 py-2.5 text-sm text-white transition-colors focus:outline-none"
+                        style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+                      >
+                        {TIPO_GASTO.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        value={gasto.monto}
+                        onChange={(e) => updateGasto(index, { monto: e.target.value })}
+                        className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                        style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+                        placeholder="Monto CLP"
+                      />
+                      <input
+                        type="text"
+                        value={gasto.descripcion}
+                        onChange={(e) => updateGasto(index, { descripcion: e.target.value })}
+                        className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                        style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+                        placeholder="Descripción"
+                      />
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] || null
+                          updateGasto(index, { foto: f, fotoPreview: f ? URL.createObjectURL(f) : null })
+                        }}
+                        className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
+                      />
+                      {gasto.fotoPreview ? (
+                        <img src={gasto.fotoPreview} alt="Preview" className="mt-2 rounded-lg max-h-24 object-cover" />
+                      ) : gasto.fotoUrl ? (
+                        <a
+                          href={gasto.fotoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-emerald-400 hover:text-emerald-300 mt-2 inline-block"
+                        >
+                          Comprobante actual
+                        </a>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setEditando(null)}
+                className="flex-1 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={guardarEdicion}
+                disabled={saving}
+                className="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                style={{ background: '#10B981' }}
+              >
+                {saving ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -55,20 +55,26 @@ El chofer trabaja con un flujo de **Iniciar/Terminar Día**:
 1. **Iniciar Día** → Ingresa km inicio + foto del cuenta km (bucket `km-fotos`)
 2. **Durante el día** → Registra gastos (combustible, peaje, comida, mecánico, otro) con foto de comprobante (bucket `gastos`)
 3. **Terminar Día** → Ingresa km término + foto de respaldo del cuenta km (bucket `km-fotos`)
+4. **Editar ruta** (historial) → El chofer puede modificar km inicio/término, observaciones, fotos de km y **gestionar gastos** (agregar, editar, eliminar) con comprobantes, en rutas terminadas
 
 Tabla `viajes` actualizada:
 - `foto_km_inicio` → URL de la foto al iniciar
 - `foto_km_termino` → URL de la foto al cerrar
 - `estado` → 'en_curso' | 'terminado'
 
+Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el resto de tipos queda interno.
+
 ## APIs Implementadas
 
 - `POST /api/viajes/iniciar` - Inicia el día (km inicio + foto km)
 - `GET /api/viajes/hoy` - Obtiene viaje activo del día
 - `PUT /api/viajes/[id]/terminar` - Termina el día (km término + foto + gastos en lote)
+- `PUT /api/viajes/[id]` - Edita km inicio/término, observaciones y fotos de km
 - `POST /api/gastos` - Registra gastos de un viaje
+- `PATCH /api/gastos/[id]` - Edita un gasto (tipo, monto, descripción, foto)
+- `DELETE /api/gastos/[id]` - Elimina un gasto
 - `POST /api/upload` - Upload de fotos (bucket: `gastos` o `km-fotos`)
-- `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `clientes.usuario_id`)
+- `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `clientes.usuario_id`, gastos filtrados solo a `peaje`)
 
 ## Deploy
 
@@ -79,6 +85,8 @@ Tabla `viajes` actualizada:
 ## Último Cambio
 
 Rediseño Linear dark en toda la app + portal cliente funcional (servicios y rutas con gastos/fotos). Clientes vinculados a sus usuarios con `clientes.usuario_id` (migraciones 003 y 004). Deploy actualizado en nxrutas.
+
+Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede editar rutas terminadas (km, observaciones, fotos y CRUD de gastos).
 
 ## Bloqueos
 

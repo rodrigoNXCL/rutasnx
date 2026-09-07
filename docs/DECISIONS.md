@@ -46,6 +46,11 @@
 - Clientes vinculados a su usuario de login mediante `clientes.usuario_id` (FK → usuarios).
 - El usuario cliente se crea con `email = RUT` (login por RUT).
 - Los clientes existentes se vincularon con backfill SQL por RUT/email (migración 004).
+- El mandante ve **solo gastos tipo `peaje`** de sus rutas (`GET /api/cliente/servicios` filtra). El resto de tipos (combustible, comida, mecánico, otro) queda interno del chofer.
+
+### Edición de Rutas (Chofer)
+- El chofer puede editar rutas terminadas desde el historial: km inicio/término, observaciones, fotos de km y **CRUD de gastos** (`POST/PATCH/DELETE /api/gastos[/id]`).
+- Ownership verificado por sesión: los endpoints de chofer resuelven `choferes.usuario_id` y validan que el recurso pertenezca al viaje del chofer. La edición guarda evidencia fotográfica de comprobantes (bucket `gastos`/`km-fotos`).
 
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
@@ -64,3 +69,5 @@
 | 2026-09-06 | Columna `clientes.usuario_id` (Opción A) | Vincular portal cliente con su usuario, sin heurísticas |
 | 2026-09-06 | Diseño UI "Linear dark" | Estética moderna y consistente en toda la plataforma |
 | 2026-09-06 | Migración a vinext + worker `nxrutas` | Deploy Next.js en Cloudflare Workers |
+| 2026-09-06 | Cliente ve solo gastos de tipo `peaje` | El mandante consulta solo la información relevante de sus rutas; costos internos quedan fuera del portal |
+| 2026-09-06 | Edición de rutas por el chofer (km, fotos, obs y CRUD gastos) | Corrección de registros con evidencia fotográfica, con ownership verificado |

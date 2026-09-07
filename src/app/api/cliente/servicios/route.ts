@@ -55,7 +55,15 @@ export async function GET() {
       return Response.json({ error: error.message }, { status: 500 })
     }
 
-    return Response.json(servicios || [])
+    const datos = (servicios || []).map((servicio) => ({
+      ...servicio,
+      viajes: (servicio.viajes || []).map((viaje) => ({
+        ...viaje,
+        gastos: (viaje.gastos || []).filter((gasto) => gasto.tipo === 'peaje'),
+      })),
+    }))
+
+    return Response.json(datos)
   } catch (error) {
     console.error('Error:', error)
     return Response.json({ error: 'Error interno' }, { status: 500 })
