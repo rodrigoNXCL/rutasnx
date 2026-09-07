@@ -39,60 +39,56 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100">
-      <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-lg">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-slate-900">rutasNX</h1>
-          <p className="mt-1 text-sm text-slate-600">Plataforma de control operacional</p>
+    <div className="flex min-h-screen items-center justify-center" style={{ background: '#0D0D0D' }}>
+      <div className="w-full max-w-sm px-8">
+        <div className="mb-12 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight text-white">rutasNX</h1>
+          <p className="mt-2 text-base text-zinc-400">Control operacional</p>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600 border border-red-200">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="identifier" className="block text-sm font-medium text-slate-700">
-              Usuario (Email o RUT)
-            </label>
             <input
               id="identifier"
               type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2.5 text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              placeholder="correo@ejemplo.com o 12.345.678-9"
+              className="w-full rounded-lg border px-4 py-3.5 text-white placeholder-zinc-500 transition-colors focus:outline-none focus:ring-1"
+              style={{ background: '#141414', borderColor: '#2A2A2A' }}
+              placeholder="Usuario"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-              Contraseña
-            </label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2.5 text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border px-4 py-3.5 text-white placeholder-zinc-500 transition-colors focus:outline-none focus:ring-1"
+              style={{ background: '#141414', borderColor: '#2A2A2A' }}
+              placeholder="Contraseña"
               required
             />
           </div>
 
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
+
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-emerald-600 px-4 py-2.5 text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 font-medium"
+            className="w-full rounded-lg px-4 py-3.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
+            style={{ background: '#10B981' }}
           >
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
-          Powered by NXChile
+        <p className="mt-16 text-center text-xs text-zinc-600">
+          NXChile
         </p>
       </div>
     </div>

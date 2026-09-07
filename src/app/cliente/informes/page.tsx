@@ -1,18 +1,21 @@
-import { getSession } from '@/lib/auth'
+'use client'
 
-export default async function ClienteInformes() {
-  const session = await getSession()
+import { useState } from 'react'
+
+export default function ClienteInformes() {
+  const [loading, setLoading] = useState(false)
+
+  if (loading) {
+    return <div className="p-8 text-sm text-zinc-500">Cargando...</div>
+  }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Informes</h1>
-      <p className="text-muted-foreground mb-4">
-        Hola, {session?.nombre}
-      </p>
-      <div className="rounded-lg bg-white p-6 shadow">
-        <p className="text-gray-500">
-          Descarga de informes en PDF y CSV próximamente...
-        </p>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        <h1 className="text-2xl font-semibold text-white tracking-tight mb-8">Informes</h1>
+        <div className="text-center py-16">
+          <p className="text-sm text-zinc-500">Próximamente</p>
+        </div>
       </div>
     </div>
   )

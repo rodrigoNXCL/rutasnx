@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       .from('clientes')
       .insert({
         empresa_id: session.empresa_id,
+        usuario_id: usuario_id,
         nombre,
         rut,
         telefono,

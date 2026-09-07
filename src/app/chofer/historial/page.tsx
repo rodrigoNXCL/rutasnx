@@ -58,177 +58,186 @@ export default function ChoferHistorial() {
 
   function formatDate(dateStr: string): string {
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-CL', {
-      weekday: 'short',
+      weekday: 'long',
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric',
       timeZone: 'America/Santiago',
     })
   }
 
+  function formatDateShort(dateStr: string): string {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('es-CL', {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'America/Santiago',
+    })
+  }
+
   if (loading) {
-    return <div className="text-slate-600">Cargando...</div>
+    return <div className="p-8 text-sm text-zinc-500">Cargando...</div>
   }
 
   return (
-    <div>
-      <h1 className="text-xl font-bold mb-4 text-slate-900">Historial de Viajes</h1>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        <h1 className="text-2xl font-semibold text-white tracking-tight mb-8">Historial</h1>
 
-      {viajes.length === 0 ? (
-        <div className="rounded-lg bg-white p-6 shadow text-center">
-          <p className="text-slate-500">No tienes viajes registrados</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {viajes.map((viaje) => (
-            <div key={viaje.id} className="rounded-lg bg-white shadow overflow-hidden">
+        {viajes.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-zinc-500">Sin viajes registrados</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {viajes.map((viaje) => (
               <div
-                className="p-4 cursor-pointer hover:bg-slate-50"
-                onClick={() => setExpandedViaje(expandedViaje === viaje.id ? null : viaje.id)}
+                key={viaje.id}
+                className="rounded-xl border overflow-hidden"
+                style={{ background: '#141414', borderColor: '#2A2A2A' }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">
-                      {formatDate(viaje.fecha)}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      viaje.estado === 'en_curso'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-emerald-100 text-emerald-700'
-                    }`}>
-                      {viaje.estado === 'en_curso' ? 'En curso' : 'Terminado'}
-                    </span>
+                <button
+                  onClick={() => setExpandedViaje(expandedViaje === viaje.id ? null : viaje.id)}
+                  className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-white">{formatDateShort(viaje.fecha)}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{viaje.camiones?.patente || 'Sin camión'}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-slate-700">
-                      {viaje.km_inicio.toLocaleString('es-CL')} → {viaje.km_termino ? viaje.km_termino.toLocaleString('es-CL') : '...'} km
-                    </span>
-                    <span className="text-emerald-600 font-medium">
-                      {viaje.km_termino ? `+${(viaje.km_termino - viaje.km_inicio).toLocaleString('es-CL')} km` : ''}
-                    </span>
-                    <span className="text-slate-400">
-                      {expandedViaje === viaje.id ? '▲' : '▼'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm text-slate-500">
-                  <span>🚛 {viaje.camiones?.patente || 'Sin camión'}</span>
-                  {viaje.servicios && <span>📍 {viaje.servicios.nombre}</span>}
-                  {viaje.gastos.length > 0 && (
-                    <span className="text-emerald-600 font-medium">
-                      💰 {viaje.gastos.length} gasto(s) - Total: {formatCLP(viaje.gastos.reduce((sum, g) => sum + g.monto, 0))}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {expandedViaje === viaje.id && (
-                <div className="border-t border-slate-100 p-4 bg-slate-50">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold text-slate-800 mb-2">Detalles del Viaje</h4>
-                      <div className="space-y-1 text-sm">
-                        <p><span className="text-slate-500">Camión:</span> {viaje.camiones?.patente} {viaje.camiones?.marca && `(${viaje.camiones.marca})`}</p>
-                        {viaje.servicios && (
-                          <>
-                            <p><span className="text-slate-500">Servicio:</span> {viaje.servicios.nombre}</p>
-                            {viaje.servicios.origen && viaje.servicios.destino && (
-                              <p><span className="text-slate-500">Trayecto:</span> {viaje.servicios.origen} → {viaje.servicios.destino}</p>
-                            )}
-                          </>
-                        )}
-                        <p><span className="text-slate-500">Km Inicio:</span> {viaje.km_inicio.toLocaleString('es-CL')} km</p>
-                        {viaje.km_termino && (
-                          <p><span className="text-slate-500">Km Término:</span> {viaje.km_termino.toLocaleString('es-CL')} km</p>
-                        )}
-                        {viaje.observaciones && (
-                          <p><span className="text-slate-500">Observaciones:</span> {viaje.observaciones}</p>
-                        )}
-                      </div>
-
-                      <div className="mt-3 flex gap-2">
-                        {viaje.foto_km_inicio && (
-                          <a
-                            href={viaje.foto_km_inicio}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs bg-white border border-emerald-300 text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50"
-                          >
-                            📷 Foto Km Inicio
-                          </a>
-                        )}
-                        {viaje.foto_km_termino && (
-                          <a
-                            href={viaje.foto_km_termino}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs bg-white border border-emerald-300 text-emerald-700 px-3 py-1.5 rounded hover:bg-emerald-50"
-                          >
-                            📷 Foto Km Término
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-slate-800 mb-2">Gastos ({viaje.gastos.length})</h4>
-                      {viaje.gastos.length === 0 ? (
-                        <p className="text-sm text-slate-400">Sin gastos registrados</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {viaje.gastos.map((gasto) => (
-                            <div key={gasto.id} className="bg-white rounded-lg p-3 border border-slate-200">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <span className="capitalize font-medium text-slate-800">{gasto.tipo}</span>
-                                  {gasto.descripcion && (
-                                    <span className="text-slate-500 text-sm ml-2">- {gasto.descripcion}</span>
-                                  )}
-                                </div>
-                                <span className="font-bold text-emerald-600">{formatCLP(gasto.monto)}</span>
-                              </div>
-                              {gasto.foto_url && (
-                                <div className="mt-2">
-                                  <a
-                                    href={gasto.foto_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-emerald-600 hover:underline"
-                                  >
-                                    📷 Ver comprobante
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          <div className="border-t border-slate-200 pt-2 mt-2">
-                            <div className="flex justify-between font-bold text-slate-800">
-                              <span>Total Gastos:</span>
-                              <span className="text-emerald-600">{formatCLP(viaje.gastos.reduce((sum, g) => sum + g.monto, 0))}</span>
-                            </div>
-                          </div>
-                        </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-white">
+                        {viaje.km_inicio.toLocaleString('es-CL')} → {viaje.km_termino ? viaje.km_termino.toLocaleString('es-CL') : '...'}
+                      </p>
+                      {viaje.km_termino && (
+                        <p className="text-xs text-emerald-400 mt-0.5">
+                          +{(viaje.km_termino - viaje.km_inicio).toLocaleString('es-CL')} km
+                        </p>
                       )}
                     </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      viaje.estado === 'en_curso'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-zinc-700 text-zinc-300'
+                    }`}>
+                      {viaje.estado === 'en_curso' ? 'En curso' : 'Listo'}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 text-zinc-500 transition-transform ${expandedViaje === viaje.id ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
+                </button>
 
-                  {viaje.estado === 'en_curso' && (
-                    <div className="mt-4 pt-4 border-t border-slate-200">
-                      <Link
-                        href={`/chofer/registro?fecha=${viaje.fecha}`}
-                        className="inline-block bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium"
-                      >
-                        Continuar Viaje →
-                      </Link>
+                {expandedViaje === viaje.id && (
+                  <div className="border-t px-5 py-5" style={{ borderColor: '#2A2A2A' }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Viaje</h4>
+                        <div className="space-y-2 text-sm">
+                          <p className="text-zinc-400">{formatDate(viaje.fecha)}</p>
+                          {viaje.servicios && (
+                            <p className="text-zinc-400">{viaje.servicios.nombre}</p>
+                          )}
+                          <div className="pt-2">
+                            <p className="text-zinc-500">Kilometraje</p>
+                            <p className="text-white font-medium">{viaje.km_inicio.toLocaleString('es-CL')} km</p>
+                            {viaje.km_termino && (
+                              <>
+                                <p className="text-white font-medium">{viaje.km_termino.toLocaleString('es-CL')} km</p>
+                                <p className="text-emerald-400 text-sm">+{(viaje.km_termino - viaje.km_inicio).toLocaleString('es-CL')} km</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          {viaje.foto_km_inicio && (
+                            <a
+                              href={viaje.foto_km_inicio}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-zinc-400 border border-zinc-700 rounded-lg px-3 py-2 hover:bg-zinc-800 transition-colors"
+                            >
+                              Foto inicio
+                            </a>
+                          )}
+                          {viaje.foto_km_termino && (
+                            <a
+                              href={viaje.foto_km_termino}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-zinc-400 border border-zinc-700 rounded-lg px-3 py-2 hover:bg-zinc-800 transition-colors"
+                            >
+                              Foto término
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Gastos</h4>
+                        {viaje.gastos.length === 0 ? (
+                          <p className="text-sm text-zinc-600">Sin gastos</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {viaje.gastos.map((gasto) => (
+                              <div key={gasto.id} className="flex items-center justify-between rounded-lg px-4 py-3" style={{ background: '#1A1A1A' }}>
+                                <div>
+                                  <p className="text-sm font-medium text-white capitalize">{gasto.tipo}</p>
+                                  {gasto.descripcion && (
+                                    <p className="text-xs text-zinc-500">{gasto.descripcion}</p>
+                                  )}
+                                  {gasto.foto_url && (
+                                    <a
+                                      href={gasto.foto_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 mt-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                      Ver comprobante
+                                    </a>
+                                  )}
+                                </div>
+                                <p className="text-sm font-semibold text-white">{formatCLP(gasto.monto)}</p>
+                              </div>
+                            ))}
+                            <div className="flex justify-between items-center pt-2">
+                              <p className="text-sm font-medium text-zinc-500">Total</p>
+                              <p className="text-base font-semibold text-white">{formatCLP(viaje.gastos.reduce((sum, g) => sum + g.monto, 0))}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+
+                    {viaje.estado === 'en_curso' && (
+                      <div className="mt-6 pt-5 border-t" style={{ borderColor: '#2A2A2A' }}>
+                        <Link
+                          href={`/chofer/registro?fecha=${viaje.fecha}`}
+                          className="inline-flex items-center gap-2 text-sm font-medium text-white px-5 py-2.5 rounded-lg transition-colors"
+                          style={{ background: '#10B981' }}
+                        >
+                          Continuar viaje
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -8,28 +8,22 @@ export default async function SuperadminLayout({
   await requireSuperadmin()
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-slate-900 text-white shadow">
-        <nav className="mx-auto max-w-7xl px-4 py-4">
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <header className="border-b border-zinc-800" style={{ background: '#0D0D0D' }}>
+        <nav className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <span className="text-xl font-bold text-white">rutasNX — Super Admin</span>
-            <div className="flex gap-6 text-sm">
-              <a href="/superadmin/dashboard" className="text-white hover:text-slate-300">
-                Dashboard
-              </a>
-              <a href="/superadmin/empresas" className="text-white hover:text-slate-300">
-                Empresas
-              </a>
-              <form action="/api/auth/logout" method="POST">
-                <button type="submit" className="text-white hover:text-red-300">
-                  Cerrar sesión
-                </button>
+            <span className="text-lg font-semibold tracking-tight text-white">rutasNX</span>
+            <div className="flex gap-8 text-sm">
+              <a href="/superadmin/dashboard" className="text-zinc-400 hover:text-white transition-colors">Dashboard</a>
+              <a href="/superadmin/empresas" className="text-zinc-400 hover:text-white transition-colors">Empresas</a>
+              <form action="/api/auth/logout" method="POST" className="inline">
+                <button type="submit" className="text-zinc-500 hover:text-red-400 transition-colors">Cerrar</button>
               </form>
             </div>
           </div>
         </nav>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
+      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
     </div>
   )
 }

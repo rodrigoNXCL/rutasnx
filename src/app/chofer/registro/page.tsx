@@ -283,7 +283,7 @@ export default function ChoferRegistro() {
 
       const viaje = await res.json()
       setViajeActual(viaje)
-      setSuccess('Día iniciado. Recuerda terminar el día al finalizar.')
+      setSuccess('Día iniciado')
 
       setTimeout(() => setSuccess(''), 5000)
     } catch (error) {
@@ -408,7 +408,7 @@ export default function ChoferRegistro() {
         return
       }
 
-      setSuccess('Día terminado exitosamente')
+      setSuccess('Día terminado')
       setGastos([])
 
       setTimeout(() => {
@@ -423,308 +423,276 @@ export default function ChoferRegistro() {
   }
 
   if (loading) {
-    return <div className="text-slate-600">Cargando...</div>
+    return (
+      <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+        <div className="max-w-lg mx-auto px-6 py-10">
+          <p className="text-sm text-zinc-500">Cargando...</p>
+        </div>
+      </div>
+    )
   }
 
   if (asignaciones.length === 0) {
     return (
-      <div className="rounded-lg bg-white p-6 shadow text-center">
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Sin asignaciones activas</h2>
-        <p className="text-slate-500">Contacta al admin para que te asigne a un servicio.</p>
+      <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+        <div className="max-w-lg mx-auto px-6 py-10">
+          <div className="text-center py-16">
+            <p className="text-sm text-zinc-500">Sin asignaciones activas</p>
+            <p className="text-xs text-zinc-600 mt-1">Contacta al admin</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
-      <h1 className="text-xl font-bold mb-4 text-slate-900">
-        {loadingFecha ? 'Cargando...' : (viajeActual ? 'Terminar Día' : 'Iniciar Día')}
-      </h1>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-lg mx-auto px-6 py-8">
+        <h1 className="text-2xl font-semibold text-white tracking-tight mb-8">
+          {loadingFecha ? 'Cargando...' : (viajeActual ? 'Terminar Día' : 'Iniciar Día')}
+        </h1>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-600">
-          {success}
-        </div>
-      )}
-
-      {viajeActual ? (
-        <form onSubmit={terminarDia} className="space-y-6">
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-bold text-emerald-800">Día en curso</span>
-              <span className="text-xs bg-emerald-200 text-emerald-800 px-2 py-1 rounded">En proceso</span>
-            </div>
-            <p className="text-sm text-emerald-700">
-              <span className="font-medium">Km Inicio:</span> {viajeActual.km_inicio}
-            </p>
-            {viajeActual.foto_km_inicio && (
-              <p className="text-sm text-emerald-700 mt-1">
-                <span className="font-medium">Foto km inicio:</span>{' '}
-                <a href={viajeActual.foto_km_inicio} target="_blank" rel="noopener noreferrer" className="text-emerald-600 underline">
-                  Ver foto
-                </a>
-              </p>
-            )}
-            {viajeActual.gastos && viajeActual.gastos.length > 0 && (
-              <p className="text-sm text-emerald-700 mt-1">
-                <span className="font-medium">Gastos registrados:</span> {viajeActual.gastos.length}
-              </p>
-            )}
+        {error && (
+          <div className="mb-5 p-4 rounded-xl border" style={{ background: '#2D1515', borderColor: '#5D2020' }}>
+            <p className="text-sm text-red-400">{error}</p>
           </div>
+        )}
 
-          <div className="rounded-lg bg-white p-4 shadow">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">Kilómetro de Término</h2>
+        {success && (
+          <div className="mb-5 p-4 rounded-xl border" style={{ background: '#0D2D1D', borderColor: '#0D5D3D' }}>
+            <p className="text-sm text-emerald-400">{success}</p>
+          </div>
+        )}
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Km Término *</label>
-              <input
-                type="number"
-                value={form.km_termino}
-                onChange={(e) => setForm({ ...form, km_termino: e.target.value })}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
-                placeholder="Ej: 45250"
-                required
-              />
+        {viajeActual ? (
+          <form onSubmit={terminarDia} className="space-y-5">
+            <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-zinc-400">Día en curso</p>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400">En proceso</span>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-zinc-400">Km Inicio: <span className="font-medium text-white">{viajeActual.km_inicio.toLocaleString('es-CL')}</span></p>
+                {viajeActual.gastos && viajeActual.gastos.length > 0 && (
+                  <p className="text-sm text-zinc-400">{viajeActual.gastos.length} gasto(s)</p>
+                )}
+              </div>
             </div>
 
-            {form.km_termino && parseInt(form.km_termino) >= parseInt(form.km_inicio) && (
-              <p className="mb-4 text-sm font-medium text-emerald-600">
-                Recorrido: +{parseInt(form.km_termino) - parseInt(form.km_inicio)} km
-              </p>
-            )}
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Foto de respaldo (cuenta km) *
-              </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileKmTerminoChange}
-                className="w-full text-sm text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                required
-              />
-              {form.fotoKmTerminoPreview && (
-                <img
-                  src={form.fotoKmTerminoPreview}
-                  alt="Preview"
-                  className="mt-2 rounded-lg max-h-40 object-cover"
+            <div className="rounded-xl p-5 border space-y-4" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Km Término</label>
+                <input
+                  type="number"
+                  value={form.km_termino}
+                  onChange={(e) => setForm({ ...form, km_termino: e.target.value })}
+                  className="w-full rounded-lg border px-4 py-3.5 text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                  placeholder="Ej: 45250"
+                  required
                 />
+                {form.km_termino && parseInt(form.km_termino) >= parseInt(form.km_inicio) && (
+                  <p className="text-xs text-emerald-400 mt-2">+{parseInt(form.km_termino) - parseInt(form.km_inicio)} km</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Foto respaldo</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileKmTerminoChange}
+                  className="w-full text-sm text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 transition-colors"
+                  required
+                />
+                {form.fotoKmTerminoPreview && (
+                  <img src={form.fotoKmTerminoPreview} alt="Preview" className="mt-3 rounded-lg max-h-40 object-cover" />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Observaciones</label>
+                <textarea
+                  value={form.observaciones}
+                  onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+                  rows={2}
+                  className="w-full rounded-lg border px-4 py-3 text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                  placeholder="Notas..."
+                />
+              </div>
+            </div>
+
+            <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-medium text-white">Gastos</p>
+                <button
+                  type="button"
+                  onClick={addGasto}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                >
+                  + Agregar
+                </button>
+              </div>
+
+              {gastos.length === 0 && (
+                <p className="text-xs text-zinc-500 text-center py-3">Sin gastos</p>
               )}
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Observaciones</label>
-              <textarea
-                value={form.observaciones}
-                onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
-                rows={2}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
-                placeholder="Notas adicionales..."
-              />
-            </div>
-          </div>
+              {gastos.map((gasto, index) => (
+                <div key={index} className="rounded-lg p-4 mb-3" style={{ background: '#1A1A1A' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-zinc-500">Gasto {index + 1}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeGasto(index)}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
 
-          <div className="rounded-lg bg-white p-4 shadow">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-slate-700">Gastos del día</h2>
-              <button
-                type="button"
-                onClick={addGasto}
-                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-              >
-                + Agregar
-              </button>
-            </div>
-
-            {gastos.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-4">
-                Sin gastos registrados. Puedes agregar antes de terminar.
-              </p>
-            )}
-
-            {gastos.map((gasto, index) => (
-              <div key={index} className="border border-slate-200 rounded-lg p-3 mb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-600">Gasto {index + 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeGasto(index)}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <select
-                    value={gasto.tipo}
-                    onChange={(e) => updateGasto(index, 'tipo', e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-900"
-                  >
-                    <option value="combustible">Combustible</option>
-                    <option value="peaje">Peaje</option>
-                    <option value="comida">Comida</option>
-                    <option value="mecanico">Mecánico</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                  <input
-                    type="number"
-                    value={gasto.monto}
-                    onChange={(e) => updateGasto(index, 'monto', e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-900"
-                    placeholder="Monto CLP"
-                  />
-                  <input
-                    type="text"
-                    value={gasto.descripcion}
-                    onChange={(e) => updateGasto(index, 'descripcion', e.target.value)}
-                    className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-900"
-                    placeholder="Descripción (opcional)"
-                  />
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Foto comprobante
-                    </label>
+                  <div className="space-y-3">
+                    <select
+                      value={gasto.tipo}
+                      onChange={(e) => updateGasto(index, 'tipo', e.target.value)}
+                      className="w-full rounded-lg border px-3 py-2.5 text-sm text-white transition-colors focus:outline-none"
+                      style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+                    >
+                      <option value="combustible">Combustible</option>
+                      <option value="peaje">Peaje</option>
+                      <option value="comida">Comida</option>
+                      <option value="mecanico">Mecánico</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                    <input
+                      type="number"
+                      value={gasto.monto}
+                      onChange={(e) => updateGasto(index, 'monto', e.target.value)}
+                      className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                      style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+                      placeholder="Monto CLP"
+                    />
+                    <input
+                      type="text"
+                      value={gasto.descripcion}
+                      onChange={(e) => updateGasto(index, 'descripcion', e.target.value)}
+                      className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                      style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+                      placeholder="Descripción"
+                    />
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       onChange={(e) => updateGasto(index, 'foto', e.target.files?.[0] || null)}
-                      className="w-full text-sm text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                      className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
                     />
                     {gasto.fotoPreview && (
-                      <img
-                        src={gasto.fotoPreview}
-                        alt="Preview"
-                        className="mt-2 rounded-lg max-h-32 object-cover"
-                      />
+                      <img src={gasto.fotoPreview} alt="Preview" className="mt-2 rounded-lg max-h-24 object-cover" />
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <button
-            type="submit"
-            disabled={saving || uploading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-white font-medium hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {saving ? (uploading ? 'Subiendo fotos...' : 'Guardando...') : 'Terminar Día'}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={iniciarDia} className="space-y-6">
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Fecha</label>
-            <input
-              type="date"
-              value={form.fecha}
-              max={today}
-              onChange={(e) => onFechaChange(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 max-w-xs"
-            />
-          </div>
+            <button
+              type="submit"
+              disabled={saving || uploading}
+              className="w-full rounded-xl px-4 py-3.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
+              style={{ background: '#10B981' }}
+            >
+              {saving ? (uploading ? 'Subiendo...' : 'Guardando...') : 'Terminar Día'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={iniciarDia} className="space-y-5">
+            <div className="mb-5">
+              <input
+                type="date"
+                value={form.fecha}
+                max={today}
+                onChange={(e) => onFechaChange(e.target.value)}
+                className="rounded-lg border px-4 py-3 text-white transition-colors focus:outline-none"
+                style={{ background: '#141414', borderColor: '#2A2A2A' }}
+              />
+            </div>
 
-          {asignaciones.length > 1 && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Selecciona asignación:</label>
-              <div className="grid gap-2">
+            {asignaciones.length > 1 && (
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide">Selecciona asignación</label>
                 {asignaciones.map((a) => (
                   <button
                     key={a.id}
                     type="button"
                     onClick={() => selectAsignacion(a)}
-                    className={`p-3 rounded-lg border text-left transition ${
+                    className={`w-full p-4 rounded-xl border text-left transition-colors ${
                       asignacion?.id === a.id
-                        ? 'border-emerald-500 bg-emerald-50'
-                        : 'border-slate-200 bg-white hover:border-emerald-300'
+                        ? 'border-emerald-500/50'
+                        : 'border-zinc-800 hover:border-zinc-700'
                     }`}
+                    style={{ background: asignacion?.id === a.id ? '#1A2D2A' : '#141414' }}
                   >
-                    <div className="font-medium text-slate-900">
-                      {a.camiones.patente} - {a.servicios?.nombre || 'Sin servicio'}
-                    </div>
-                    {a.servicios?.clientes && (
-                      <div className="text-sm text-slate-500">{a.servicios.clientes.nombre}</div>
+                    <p className="text-sm font-medium text-white">{a.camiones.patente}</p>
+                    {a.servicios && (
+                      <p className="text-xs text-zinc-500 mt-0.5">{a.servicios.nombre}</p>
                     )}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {asignacion && (
-            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4 mb-6">
-              <p className="text-sm text-emerald-700">
-                <span className="font-medium">Camión:</span> {asignacion.camiones.patente}
-                {asignacion.camiones.marca && ` - ${asignacion.camiones.marca}`}
-              </p>
-              {asignacion.servicios && (
-                <>
-                  <p className="text-sm text-emerald-700">
-                    <span className="font-medium">Servicio:</span> {asignacion.servicios.nombre}
-                  </p>
-                  {asignacion.servicios.clientes && (
-                    <p className="text-sm text-emerald-600">
-                      <span className="font-medium">Cliente:</span> {asignacion.servicios.clientes.nombre}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+            {asignacion && (
+              <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+                <p className="text-sm font-medium text-white">{asignacion.camiones.patente}</p>
+                {asignacion.camiones.marca && (
+                  <p className="text-xs text-zinc-500">{asignacion.camiones.marca}</p>
+                )}
+                {asignacion.servicios && (
+                  <p className="text-xs text-zinc-500 mt-1">{asignacion.servicios.nombre}</p>
+                )}
+              </div>
+            )}
 
-          <div className="rounded-lg bg-white p-4 shadow">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">Kilómetro de Inicio</h2>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Km Inicio *</label>
-              <input
-                type="number"
-                value={form.km_inicio}
-                onChange={(e) => setForm({ ...form, km_inicio: e.target.value })}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
-                placeholder="Ej: 45000"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Foto del cuenta kilómetros *
-              </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleFileKmInicioChange}
-                className="w-full text-sm text-slate-500 file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                required
-              />
-              {form.fotoKmInicioPreview && (
-                <img
-                  src={form.fotoKmInicioPreview}
-                  alt="Preview"
-                  className="mt-2 rounded-lg max-h-40 object-cover"
+            <div className="rounded-xl p-5 border space-y-4" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Km Inicio</label>
+                <input
+                  type="number"
+                  value={form.km_inicio}
+                  onChange={(e) => setForm({ ...form, km_inicio: e.target.value })}
+                  className="w-full rounded-lg border px-4 py-3.5 text-white placeholder-zinc-500 transition-colors focus:outline-none"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                  placeholder="Ej: 45000"
+                  required
                 />
-              )}
-            </div>
-          </div>
+              </div>
 
-          <button
-            type="submit"
-            disabled={saving || uploading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-white font-medium hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {saving ? (uploading ? 'Subiendo foto...' : 'Guardando...') : 'Iniciar Día'}
-          </button>
-        </form>
-      )}
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Foto cuenta km</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleFileKmInicioChange}
+                  className="w-full text-sm text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 transition-colors"
+                  required
+                />
+                {form.fotoKmInicioPreview && (
+                  <img src={form.fotoKmInicioPreview} alt="Preview" className="mt-3 rounded-lg max-h-40 object-cover" />
+                )}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving || uploading}
+              className="w-full rounded-xl px-4 py-3.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
+              style={{ background: '#10B981' }}
+            >
+              {saving ? (uploading ? 'Subiendo...' : 'Guardando...') : 'Iniciar Día'}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   )
 }

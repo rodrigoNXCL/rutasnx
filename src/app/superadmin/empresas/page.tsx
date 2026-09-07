@@ -139,32 +139,23 @@ export default function EmpresasPage() {
     setAdminError('')
     setAdminSaving(true)
     try {
-      if (editAdmin) {
-        const res = await fetch(`/api/empresas/${empresaId}/admins/${editAdmin.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(adminForm),
-        })
-        if (res.ok) {
-          setShowAdminModal(null)
-          fetchAdmins(empresaId)
-        } else {
-          const data = await res.json()
-          setAdminError(data.error || 'Error al guardar')
-        }
+      const url = editAdmin
+        ? `/api/empresas/${empresaId}/admins/${editAdmin.id}`
+        : `/api/empresas/${empresaId}/admins`
+      const method = editAdmin ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adminForm),
+      })
+
+      if (res.ok) {
+        setShowAdminModal(null)
+        fetchAdmins(empresaId)
       } else {
-        const res = await fetch(`/api/empresas/${empresaId}/admins`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(adminForm),
-        })
-        if (res.ok) {
-          setShowAdminModal(null)
-          fetchAdmins(empresaId)
-        } else {
-          const data = await res.json()
-          setAdminError(data.error || 'Error al guardar')
-        }
+        const data = await res.json()
+        setAdminError(data.error || 'Error al guardar')
       }
     } catch (error) {
       setAdminError('Error de conexión')
@@ -197,193 +188,165 @@ export default function EmpresasPage() {
   }
 
   if (loading) {
-    return <div className="text-slate-600">Cargando...</div>
+    return <div className="p-8 text-sm text-zinc-500">Cargando...</div>
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Empresas</h1>
-        <button
-          onClick={openNuevaEmpresa}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
-        >
-          + Nueva Empresa
-        </button>
-      </div>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Empresas</h1>
+          <button
+            onClick={openNuevaEmpresa}
+            className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors hover:opacity-90"
+            style={{ background: '#10B981' }}
+          >
+            + Nueva
+          </button>
+        </div>
 
-      <div className="rounded-lg bg-white shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-slate-100">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Nombre</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">RUT</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Email</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Teléfono</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Estado</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {empresas.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                  No hay empresas registradas
-                </td>
-              </tr>
-            ) : (
-              empresas.map((empresa) => (
-                <Fragment key={empresa.id}>
-                  <tr className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-900 font-medium">{empresa.nombre}</td>
-                    <td className="px-4 py-3 text-slate-600">{empresa.rut}</td>
-                    <td className="px-4 py-3 text-slate-600">{empresa.email || '-'}</td>
-                    <td className="px-4 py-3 text-slate-600">{empresa.telefono || '-'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                        empresa.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        {empresas.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-zinc-500">Sin empresas registradas</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {empresas.map((empresa) => (
+              <Fragment key={empresa.id}>
+                <div className="rounded-xl p-5 border transition-colors hover:border-zinc-700" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-base font-semibold text-white">{empresa.nombre}</p>
+                      <p className="text-sm text-zinc-500 mt-0.5">
+                        {empresa.rut} · {empresa.email || empresa.telefono || 'Sin contacto'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs px-2.5 py-1 rounded-full ${
+                        empresa.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
                       }`}>
                         {empresa.activo ? 'Activa' : 'Inactiva'}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => openEditarEmpresa(empresa)}
-                        className="text-blue-600 hover:text-blue-800 text-sm mr-3"
-                      >
+                      <button onClick={() => openEditarEmpresa(empresa)} className="text-sm text-zinc-500 hover:text-white transition-colors">
                         Editar
                       </button>
-                      <button
-                        onClick={() => toggleExpand(empresa.id)}
-                        className="text-slate-600 hover:text-slate-900 text-sm mr-3"
-                      >
-                        {expandedEmpresa === empresa.id ? 'Ocultar' : 'Ver'} Admins
+                      <button onClick={() => toggleExpand(empresa.id)} className="text-sm text-zinc-500 hover:text-white transition-colors">
+                        {expandedEmpresa === empresa.id ? 'Ocultar' : 'Admins'}
                       </button>
-                      <button
-                        onClick={() => openNuevoAdmin(empresa.id)}
-                        className="text-green-600 hover:text-green-800 text-sm"
-                      >
+                      <button onClick={() => openNuevoAdmin(empresa.id)} className="text-sm text-zinc-500 hover:text-white transition-colors">
                         + Admin
                       </button>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
+
                   {expandedEmpresa === empresa.id && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-3 bg-slate-50">
-                        <div className="pl-4">
-                          <h4 className="text-sm font-semibold text-slate-700 mb-2">Admins de {empresa.nombre}:</h4>
-                          {adminsPorEmpresa[empresa.id]?.length > 0 ? (
-                            <ul className="space-y-2">
-                              {adminsPorEmpresa[empresa.id].map(admin => (
-                                <li key={admin.id} className="flex items-center justify-between text-sm text-slate-600 bg-white p-2 rounded">
-                                  <span>
-                                    {admin.nombre} ({admin.email})
-                                    {!admin.activo && <span className="text-red-500 ml-2">Inactivo</span>}
-                                  </span>
-                                  <div>
-                                    <button
-                                      onClick={() => openEditarAdmin(admin, empresa.id)}
-                                      className="text-blue-600 hover:text-blue-800 text-sm mr-3"
-                                    >
-                                      Editar
-                                    </button>
-                                    <button
-                                      onClick={() => eliminarAdmin(admin.id, empresa.id)}
-                                      className="text-red-600 hover:text-red-800 text-sm"
-                                    >
-                                      Eliminar
-                                    </button>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-slate-400">Sin admins registrados</p>
-                          )}
+                    <div className="mt-4 pt-4 border-t border-zinc-800">
+                      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">Admins de {empresa.nombre}</p>
+                      {adminsPorEmpresa[empresa.id]?.length > 0 ? (
+                        <div className="space-y-2">
+                          {adminsPorEmpresa[empresa.id].map(admin => (
+                            <div key={admin.id} className="flex items-center justify-between rounded-lg px-4 py-3" style={{ background: '#1A1A1A' }}>
+                              <div>
+                                <p className="text-sm font-medium text-white">{admin.nombre}</p>
+                                <p className="text-xs text-zinc-500">{admin.email}</p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {!admin.activo && <span className="text-xs text-red-400">Inactivo</span>}
+                                <button onClick={() => openEditarAdmin(admin, empresa.id)} className="text-xs text-zinc-500 hover:text-white">
+                                  Editar
+                                </button>
+                                <button onClick={() => eliminarAdmin(admin.id, empresa.id)} className="text-xs text-red-400 hover:text-red-300">
+                                  Eliminar
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </td>
-                    </tr>
+                      ) : (
+                        <p className="text-sm text-zinc-500">Sin admins</p>
+                      )}
+                    </div>
                   )}
-                </Fragment>
-              ))
-            )}
-          </tbody>
-        </table>
+                </div>
+              </Fragment>
+            ))}
+          </div>
+        )}
       </div>
 
       {showEmpresaModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-slate-900">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowEmpresaModal(false)}>
+          <div className="rounded-xl p-6 w-full max-w-md border" style={{ background: '#141414', borderColor: '#2A2A2A' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-white mb-5">
               {editEmpresa ? 'Editar Empresa' : 'Nueva Empresa'}
             </h2>
             {empresaError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-                {empresaError}
-              </div>
+              <p className="mb-4 text-sm text-red-400">{empresaError}</p>
             )}
             <form onSubmit={guardarEmpresa} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Nombre</label>
                 <input
                   type="text"
                   value={empresaForm.nombre}
                   onChange={(e) => setEmpresaForm({ ...empresaForm, nombre: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Nombre"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">RUT</label>
                 <input
                   type="text"
                   value={empresaForm.rut}
                   onChange={(e) => setEmpresaForm({ ...empresaForm, rut: e.target.value })}
-                  placeholder="76.123.456-7"
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="RUT"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Email</label>
+              <div className="grid grid-cols-2 gap-3">
                 <input
                   type="email"
                   value={empresaForm.email}
                   onChange={(e) => setEmpresaForm({ ...empresaForm, email: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Email"
+                  className="rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Teléfono</label>
                 <input
                   type="text"
                   value={empresaForm.telefono}
                   onChange={(e) => setEmpresaForm({ ...empresaForm, telefono: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Teléfono"
+                  className="rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                 />
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="activo"
+                  id="empActivo"
                   checked={empresaForm.activo}
                   onChange={(e) => setEmpresaForm({ ...empresaForm, activo: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="rounded accent-emerald-600"
                 />
-                <label htmlFor="activo" className="ml-2 text-sm text-slate-700">Empresa activa</label>
+                <label htmlFor="empActivo" className="text-sm text-zinc-400">Activa</label>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowEmpresaModal(false)}
-                  className="flex-1 rounded-md border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                  className="flex-1 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={empresaSaving}
-                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                  style={{ background: '#10B981' }}
                 >
                   {empresaSaving ? 'Guardando...' : (editEmpresa ? 'Guardar' : 'Crear')}
                 </button>
@@ -394,72 +357,71 @@ export default function EmpresasPage() {
       )}
 
       {showAdminModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-slate-900">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowAdminModal(null)}>
+          <div className="rounded-xl p-6 w-full max-w-md border" style={{ background: '#141414', borderColor: '#2A2A2A' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-white mb-5">
               {editAdmin ? 'Editar Admin' : 'Nuevo Admin'}
             </h2>
             {adminError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-                {adminError}
-              </div>
+              <p className="mb-4 text-sm text-red-400">{adminError}</p>
             )}
             <form onSubmit={(e) => guardarAdmin(e, showAdminModal)} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Nombre</label>
                 <input
                   type="text"
                   value={adminForm.nombre}
                   onChange={(e) => setAdminForm({ ...adminForm, nombre: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Nombre"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Email</label>
                 <input
                   type="email"
                   value={adminForm.email}
                   onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Email"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  {editAdmin ? 'Nueva Contraseña (dejar vacío para no cambiar)' : 'Contraseña'}
-                </label>
                 <input
                   type="password"
                   value={adminForm.password}
                   onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                  minLength={editAdmin ? 0 : 8}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder={editAdmin ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required={!editAdmin}
                 />
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="adminActivo"
                   checked={adminForm.activo}
                   onChange={(e) => setAdminForm({ ...adminForm, activo: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="rounded accent-emerald-600"
                 />
-                <label htmlFor="adminActivo" className="ml-2 text-sm text-slate-700">Admin activo</label>
+                <label htmlFor="adminActivo" className="text-sm text-zinc-400">Activo</label>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAdminModal(null)}
-                  className="flex-1 rounded-md border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                  className="flex-1 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={adminSaving}
-                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                  style={{ background: '#10B981' }}
                 >
                   {adminSaving ? 'Guardando...' : (editAdmin ? 'Guardar' : 'Crear')}
                 </button>

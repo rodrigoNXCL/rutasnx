@@ -87,6 +87,7 @@ export interface Database {
         Row: {
           id: string
           empresa_id: string
+          usuario_id: string | null
           nombre: string
           rut: string | null
           telefono: string | null

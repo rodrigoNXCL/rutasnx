@@ -30,11 +30,16 @@ export async function GET() {
           fecha,
           km_inicio,
           km_termino,
+          ruta,
+          observaciones,
+          foto_km_inicio,
+          foto_km_termino,
           estado,
           created_at,
-          camiones (patente),
+          camiones (patente, marca),
           servicios (nombre),
-          choferes (usuarios (nombre))
+          choferes (usuarios (nombre)),
+          gastos (id, tipo, monto, descripcion, foto_url)
         `)
         .eq('empresa_id', empresa_id)
         .eq('estado', 'en_curso')
@@ -47,11 +52,16 @@ export async function GET() {
           fecha,
           km_inicio,
           km_termino,
+          ruta,
+          observaciones,
+          foto_km_inicio,
+          foto_km_termino,
           estado,
           created_at,
-          camiones (patente),
+          camiones (patente, marca),
           servicios (nombre),
-          choferes (usuarios (nombre))
+          choferes (usuarios (nombre)),
+          gastos (id, tipo, monto, descripcion, foto_url)
         `)
         .eq('empresa_id', empresa_id)
         .eq('estado', 'terminado')

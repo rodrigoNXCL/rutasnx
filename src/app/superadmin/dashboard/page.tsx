@@ -18,24 +18,23 @@ export default async function SuperadminDashboard() {
   const stats = await getStats()
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6 text-slate-900">Dashboard — Super Admin</h1>
-      <p className="text-slate-600 mb-6">Bienvenido, {session?.nombre}</p>
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg bg-white p-6 shadow border-l-4 border-emerald-500">
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Empresas</h3>
-          <p className="text-4xl font-bold text-slate-900 mt-1">{stats.empresas}</p>
-          <p className="text-sm text-slate-400">Activas</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow border-l-4 border-emerald-500">
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Admins</h3>
-          <p className="text-4xl font-bold text-slate-900 mt-1">{stats.admins}</p>
-          <p className="text-sm text-slate-400">Registrados</p>
-        </div>
-        <div className="rounded-lg bg-white p-6 shadow border-l-4 border-emerald-500">
-          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Usuarios</h3>
-          <p className="text-4xl font-bold text-slate-900 mt-1">{stats.usuarios}</p>
-          <p className="text-sm text-slate-400">En el sistema</p>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-5xl mx-auto px-6 py-10">
+        <h1 className="text-2xl font-semibold text-white tracking-tight mb-8">Dashboard</h1>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Empresas</p>
+            <p className="text-3xl font-semibold text-white mt-2">{stats.empresas}</p>
+          </div>
+          <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Admins</p>
+            <p className="text-3xl font-semibold text-white mt-2">{stats.admins}</p>
+          </div>
+          <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Usuarios</p>
+            <p className="text-3xl font-semibold text-white mt-2">{stats.usuarios}</p>
+          </div>
         </div>
       </div>
     </div>

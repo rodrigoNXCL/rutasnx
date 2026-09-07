@@ -93,140 +93,126 @@ export default function CamionesPage() {
   }
 
   if (loading) {
-    return <div className="text-slate-600">Cargando...</div>
+    return <div className="p-8 text-sm text-zinc-500">Cargando...</div>
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Camiones</h1>
-        <button
-          onClick={openNuevo}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
-        >
-          + Nuevo Camión
-        </button>
-      </div>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Camiones</h1>
+          <button
+            onClick={openNuevo}
+            className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors hover:opacity-90"
+            style={{ background: '#10B981' }}
+          >
+            + Nuevo
+          </button>
+        </div>
 
-      <div className="rounded-lg bg-white shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-slate-100">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Patente</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Marca</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Modelo</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Año</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Estado</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {camiones.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                  No hay camiones registrados
-                </td>
-              </tr>
-            ) : (
-              camiones.map((camion) => (
-                <tr key={camion.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-900 font-bold">{camion.patente}</td>
-                  <td className="px-4 py-3 text-slate-600">{camion.marca || '-'}</td>
-                  <td className="px-4 py-3 text-slate-600">{camion.modelo || '-'}</td>
-                  <td className="px-4 py-3 text-slate-600">{camion.ano || '-'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                      camion.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        {camiones.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-zinc-500">Sin camiones registrados</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {camiones.map((camion) => (
+              <div key={camion.id} className="rounded-xl p-5 border transition-colors hover:border-zinc-700" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-semibold text-white">{camion.patente}</p>
+                    <p className="text-sm text-zinc-500 mt-0.5">
+                      {[camion.marca, camion.modelo, camion.ano].filter(Boolean).join(' · ') || 'Sin detalles'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs px-2.5 py-1 rounded-full ${
+                      camion.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
                     }`}>
                       {camion.activo ? 'Activo' : 'Inactivo'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => openEditar(camion)} className="text-blue-600 hover:text-blue-800 text-sm mr-3">
+                    <button onClick={() => openEditar(camion)} className="text-sm text-zinc-500 hover:text-white transition-colors">
                       Editar
                     </button>
-                    <button onClick={() => eliminar(camion.id)} className="text-red-600 hover:text-red-800 text-sm">
+                    <button onClick={() => eliminar(camion.id)} className="text-sm text-red-400 hover:text-red-300 transition-colors">
                       Eliminar
                     </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-slate-900">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowModal(false)}>
+          <div className="rounded-xl p-6 w-full max-w-md border" style={{ background: '#141414', borderColor: '#2A2A2A' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-white mb-5">
               {editCamion ? 'Editar Camión' : 'Nuevo Camión'}
             </h2>
             <form onSubmit={guardar} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Patente *</label>
                 <input
                   type="text"
                   value={form.patente}
                   onChange={(e) => setForm({ ...form, patente: e.target.value.toUpperCase() })}
-                  placeholder="BBBB-00"
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Patente (BBBB-00)"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Marca</label>
-                  <input
-                    type="text"
-                    value={form.marca}
-                    onChange={(e) => setForm({ ...form, marca: e.target.value })}
-                    placeholder="Ej: Volvo"
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">Modelo</label>
-                  <input
-                    type="text"
-                    value={form.modelo}
-                    onChange={(e) => setForm({ ...form, modelo: e.target.value })}
-                    placeholder="Ej: FH 440"
-                    className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={form.marca}
+                  onChange={(e) => setForm({ ...form, marca: e.target.value })}
+                  placeholder="Marca"
+                  className="rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
+                <input
+                  type="text"
+                  value={form.modelo}
+                  onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+                  placeholder="Modelo"
+                  className="rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Año</label>
                 <input
                   type="number"
                   value={form.ano}
                   onChange={(e) => setForm({ ...form, ano: e.target.value })}
-                  placeholder="2020"
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400"
+                  placeholder="Año"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                 />
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="activo"
                   checked={form.activo}
                   onChange={(e) => setForm({ ...form, activo: e.target.checked })}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="rounded accent-emerald-600"
                 />
-                <label htmlFor="activo" className="ml-2 text-sm text-slate-700">Camión activo</label>
+                <label htmlFor="activo" className="text-sm text-zinc-400">Activo</label>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 rounded-md border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                  className="flex-1 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
+                  className="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
+                  style={{ background: '#10B981' }}
                 >
                   {editCamion ? 'Guardar' : 'Crear'}
                 </button>

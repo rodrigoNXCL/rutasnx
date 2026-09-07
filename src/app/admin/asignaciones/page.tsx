@@ -121,146 +121,134 @@ export default function AsignacionesPage() {
   }
 
   if (loading) {
-    return <div className="text-slate-600">Cargando...</div>
+    return <div className="p-8 text-sm text-zinc-500">Cargando...</div>
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Asignaciones</h1>
-        <button
-          onClick={openNuevo}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
-        >
-          + Nueva Asignación
-        </button>
-      </div>
+    <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-semibold text-white tracking-tight">Asignaciones</h1>
+          <button
+            onClick={openNuevo}
+            className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors hover:opacity-90"
+            style={{ background: '#10B981' }}
+          >
+            + Nueva
+          </button>
+        </div>
 
-      <div className="rounded-lg bg-white shadow overflow-hidden">
-        <table className="min-w-full">
-          <thead className="bg-slate-100">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Chofer</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Camión</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Servicio</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Estado</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {asignaciones.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                  No hay asignaciones registradas
-                </td>
-              </tr>
-            ) : (
-              asignaciones.map((a) => (
-                <tr key={a.id} className={`hover:bg-slate-50 ${!a.activo ? 'bg-gray-50 text-gray-400' : ''}`}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{a.choferes?.nombre || '-'}</div>
-                    <div className="text-sm text-slate-500">{a.choferes?.rut || ''}</div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{a.camiones?.patente || '-'}</td>
-                  <td className="px-4 py-3">
-                    <div className="text-slate-900">{a.servicios?.nombre || '-'}</div>
+        {asignaciones.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-zinc-500">Sin asignaciones registradas</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {asignaciones.map((a) => (
+              <div key={a.id} className={`rounded-xl p-5 border transition-colors hover:border-zinc-700 ${!a.activo ? 'opacity-60' : ''}`} style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-base font-semibold text-white">{a.choferes?.nombre || '-'}</p>
+                    <p className="text-sm text-zinc-500 mt-0.5">
+                      {a.camiones?.patente || '-'} · {a.servicios?.nombre || '-'}
+                    </p>
                     {a.servicios && (
-                      <div className="text-sm text-slate-500">
+                      <p className="text-xs text-zinc-600 mt-0.5">
                         {servicios.find(s => s.id === a.servicios?.id)?.clientes?.nombre || ''}
-                      </div>
+                      </p>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
+                  </div>
+                  <div className="flex items-center gap-3">
                     <button
                       onClick={() => toggleActivo(a)}
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-medium cursor-pointer ${
+                      className={`text-xs px-2.5 py-1 rounded-full cursor-pointer ${
                         a.activo
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-500'
+                          ? 'bg-emerald-500/15 text-emerald-400'
+                          : 'bg-zinc-800 text-zinc-500'
                       }`}
                     >
                       {a.activo ? 'Activo' : 'Inactivo'}
                     </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button onClick={() => eliminar(a.id)} className="text-red-600 hover:text-red-800 text-sm">
+                    <button onClick={() => eliminar(a.id)} className="text-sm text-red-400 hover:text-red-300 transition-colors">
                       Eliminar
                     </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-slate-900">Nueva Asignación</h2>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowModal(false)}>
+          <div className="rounded-xl p-6 w-full max-w-md border" style={{ background: '#141414', borderColor: '#2A2A2A' }} onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-white mb-5">Nueva Asignación</h2>
             <form onSubmit={guardar} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Servicio *</label>
                 <select
                   value={form.servicio_id}
                   onChange={(e) => setForm({ ...form, servicio_id: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 >
-                  <option value="">Seleccionar servicio</option>
+                  <option value="">Servicio</option>
                   {servicios.map(s => (
-                    <option key={s.id} value={s.id}>{s.nombre} {s.clientes ? `- ${s.clientes.nombre}` : ''}</option>
+                    <option key={s.id} value={s.id} className="text-white">{s.nombre} {s.clientes ? `- ${s.clientes.nombre}` : ''}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Chofer *</label>
                 <select
                   value={form.chofer_id}
                   onChange={(e) => setForm({ ...form, chofer_id: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 >
-                  <option value="">Seleccionar chofer</option>
+                  <option value="">Chofer</option>
                   {choferes.map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre} {c.rut ? `(${c.rut})` : ''}</option>
+                    <option key={c.id} value={c.id} className="text-white">{c.nombre} {c.rut ? `(${c.rut})` : ''}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Camión *</label>
                 <select
                   value={form.camion_id}
                   onChange={(e) => setForm({ ...form, camion_id: e.target.value })}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                   required
                 >
-                  <option value="">Seleccionar camión</option>
+                  <option value="">Camión</option>
                   {camiones.map(c => (
-                    <option key={c.id} value={c.id}>{c.patente} {c.marca ? `- ${c.marca}` : ''}</option>
+                    <option key={c.id} value={c.id} className="text-white">{c.patente} {c.marca ? `- ${c.marca}` : ''}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Observaciones</label>
                 <textarea
                   value={form.observaciones}
                   onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+                  placeholder="Observaciones"
                   rows={2}
-                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900"
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
                 />
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 rounded-md border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                  className="flex-1 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800/50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-md bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
+                  className="flex-1 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
+                  style={{ background: '#10B981' }}
                 >
                   Crear
                 </button>
