@@ -59,6 +59,7 @@
 - Exportación con `jspdf` + `jspdf-autotable` (PDF) y CSV descargable (BOM UTF-8).
 - Filtrado por periodo (fechas Chile), con filtros opcionales por servicio/chófer/camión en el admin.
 - Las URLs de las imágenes de respaldo se **acortan** en el reporte (`/s/{bucket}/{file}` → redirect 302 al storage real) para no ocupar espacio en el CSV/PDF; así cliente y admin pueden descargar cada respaldo directamente.
+- El PDF incluye un bloque de **totales** (rutas, km recorridos y gastos) entre la tabla resumen y el detalle de gastos/evidencias.
 
 ### Usuarios Activos (Admin)
 - `/admin/usuarios` + `GET /api/admin/usuarios`: lista las cuentas de login (`usuarios`) de la empresa, con toggle "Solo activos" y filtro por rol. Muestra `ultimo_login` para consultar actividad.

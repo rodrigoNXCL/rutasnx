@@ -214,7 +214,26 @@ export default function ClienteInformes() {
       margin: { left: 14, right: 14 },
     })
 
-    let cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    let cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+
+    const totalKm = rutas.reduce((s, r) => s + r.total_km, 0)
+    const totalPeaje = rutas.reduce((s, r) => s + r.total_peaje, 0)
+
+    autoTable(doc, {
+      startY: cursor,
+      head: [['Totales', '']],
+      body: [
+        ['Rutas completadas', String(rutas.length)],
+        ['Total km recorridos', `${totalKm.toLocaleString('es-CL')} km`],
+        ['Total gastos peaje', formatCLP(totalPeaje)],
+      ],
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      margin: { left: 14, right: 14 },
+    })
+
+    cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
     if (cursor >= pageH - 20) {
       doc.addPage()
       cursor = 14

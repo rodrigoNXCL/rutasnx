@@ -234,7 +234,26 @@ export default function AdminReportes() {
       margin: { left: 10, right: 10 },
     })
 
-    let cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+    let cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6
+
+    const totalKm = rutas.reduce((s, r) => s + r.total_km, 0)
+    const totalGastos = rutas.reduce((s, r) => s + r.total_gastos, 0)
+
+    autoTable(doc, {
+      startY: cursor,
+      head: [['Totales', '']],
+      body: [
+        ['Rutas completadas', String(rutas.length)],
+        ['Total km recorridos', `${totalKm.toLocaleString('es-CL')} km`],
+        ['Total gastos', formatCLP(totalGastos)],
+      ],
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+      margin: { left: 10, right: 10 },
+    })
+
+    cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
 
     if (cursor >= pageH - 20) {
       doc.addPage()
