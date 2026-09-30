@@ -74,7 +74,7 @@
 - Tabla `valor_km`: `valor` (CLP por km), `fecha_desde`, `fecha_hasta`, `created_by`. Validación de solapamiento de rangos por empresa.
 - Tabla `valor_km_historial`: auditoría de cada creación/modificación/eliminación (valor anterior/nuevo, rangos, usuario, fecha).
 - `/admin/valorizador`: gestión (CRUD) + historial de cambios.
-- El tab "Valorizador KM" de Reportes muestra el resumen diario **valorizado**: km del día × valor por km aplicable a la fecha, con totalización de la columna valor total.
+- El tab "Valorizador KM" de Reportes muestra un informe como el Resumen Diario pero con columnas adicionales: **valor por km** aplicable a la fecha y **valor total** (km × valor), con totalización de la columna valor total.
 
 ### Multi-usuario por Cliente
 - Tabla `cliente_usuarios` (cliente_id, usuario_id): relación muchos a muchos entre clientes y usuarios de login.

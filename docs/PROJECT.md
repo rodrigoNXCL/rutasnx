@@ -56,13 +56,15 @@ rutasnx/
 
 ## Estado
 
-v2.3 implementada y desplegada en producción (Cloudflare Workers).
+v2.4 implementada y desplegada en producción (Cloudflare Workers).
 - Rediseño UI completo con estética "Linear dark"
 - Login funcional con auth propia
 - Admin: CRUD completo + asignaciones + dashboard con detalle de rutas + reportes (tabs: Informes, Resumen Diario, Valorizador KM) + valorizador de km con auditoría + usuarios activos + multi-usuario por cliente
 - Chofer: registro de viajes con gastos y fotos
 - Cliente: portal con sus servicios y rutas (kilómetros y gastos en detalle) + informes PDF/CSV + resumen diario
 - Informes: solo rutas terminadas; el cliente solo gastos `peaje`, el admin todos los gastos y URLs de imágenes
+- Valorizador KM: valor por km en rangos de fecha, con historial de auditoría e informe valorizado (km × valor)
+- Multi-usuario por cliente: varios logins pueden acceder a la info de un mismo cliente
 - Tipos TypeScript alineados al esquema real (sin `never`)
 - Repo: https://github.com/rodrigoNXCL/rutasnx
 - URL: https://nxrutas.devnx-trans.workers.dev
