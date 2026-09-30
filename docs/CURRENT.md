@@ -20,6 +20,7 @@
 - [x] Diseño UI Linear dark en todos los módulos
 - [x] Deploy en Cloudflare Workers (nxrutas.devnx-trans.workers.dev)
 - [x] Informes PDF/CSV en portal cliente y admin (rutas terminadas)
+- [x] Resumen diario PDF/CSV en portal cliente y admin
 - [x] Admin: consulta de usuarios activos
 
 ## Estructura de Rutas Implementada
@@ -35,11 +36,13 @@
 - `/admin/servicios` - CRUD servicios
 - `/admin/asignaciones` - Asignar chofer+camión a servicio
 - `/admin/reportes` - Reportes PDF/CSV (rutas terminadas, con imágenes y detalle de gastos)
+- `/admin/resumen` - Resumen diario PDF/CSV (fecha, km, peajes, petróleo, otros)
 - `/admin/usuarios` - Consulta de usuarios activos de la empresa
 - `/chofer/registro` - Registro de viajes (mobile)
 - `/chofer/historial` - Historial de viajes
 - `/cliente/servicios` - Portal cliente: servicios y rutas expandibles
 - `/cliente/informes` - Informes PDF/CSV de rutas terminadas
+- `/cliente/resumen` - Resumen diario PDF/CSV (fecha, km, peajes)
 
 ## Modelo de Asignaciones
 
@@ -82,6 +85,8 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 - `GET /api/cliente/informes` - Informe de rutas terminadas del cliente en un periodo (solo gastos `peaje`)
 - `GET /api/admin/informes` - Informe de rutas terminadas de la empresa en un periodo (todos los gastos + URLs de imágenes km/gastos)
 - `GET /api/admin/usuarios` - Usuarios (cuentas de login) de la empresa, con filtro por activos/rol
+- `GET /api/admin/resumen-diario` - Resumen diario de la empresa (fecha, km, peajes, petróleo, otros)
+- `GET /api/cliente/resumen-diario` - Resumen diario del cliente (fecha, km, peajes)
 - `GET /s/[bucket]/[file]` - Redirect a la imagen real en Supabase Storage (URL corta de respaldos)
 
 ## Deploy
@@ -92,7 +97,7 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 
 ## Último Cambio
 
-Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (`/admin/reportes`). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Antes del detalle de gastos y evidencias, el PDF muestra un bloque de **totales** (rutas, km recorridos y gastos). Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
+Nuevo **Resumen Diario** en PDF/CSV para cliente (`/cliente/resumen`) y admin (`/admin/resumen`): columnas de fecha, kilómetros del día, total de peajes, total de petróleo y otros gastos (solo admin; el cliente ve solo peajes). Se genera en un rango de fechas de ruta. Incluye bloque de totales. Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (`/admin/reportes`). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Antes del detalle de gastos y evidencias, el PDF muestra un bloque de **totales** (rutas, km recorridos y gastos). Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
 
 Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede editar rutas terminadas (km, observaciones, fotos y CRUD de gastos).
 

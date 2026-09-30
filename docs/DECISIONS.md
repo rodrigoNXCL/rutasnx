@@ -64,6 +64,11 @@
 ### Usuarios Activos (Admin)
 - `/admin/usuarios` + `GET /api/admin/usuarios`: lista las cuentas de login (`usuarios`) de la empresa, con toggle "Solo activos" y filtro por rol. Muestra `ultimo_login` para consultar actividad.
 
+### Resumen Diario (PDF/CSV)
+- `/admin/resumen` + `GET /api/admin/resumen-diario`: columnas fecha, km del día, total peajes, total petróleo y otros gastos.
+- `/cliente/resumen` + `GET /api/cliente/resumen-diario`: mismo resumen pero el cliente ve **solo peajes** (regla de visibilidad del portal cliente).
+- Se genera en un rango de fechas de ruta (`desde`/`hasta`), solo rutas terminadas, con bloque de totales.
+
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
 - `/admin/*` → admin, superadmin
@@ -86,3 +91,4 @@
 | 2026-09-07 | Informes PDF/CSV de rutas (cliente solo peaje; admin todos los gastos + URLs de imágenes) | El admin requiere el detalle completo de gastos para rendición interna; el cliente solo lo relevante de sus rutas |
 | 2026-09-07 | Consulta de usuarios activos en admin | Permite al admin ver las cuentas de login de su empresa y su actividad |
 | 2026-09-07 | Regenerar `package-lock.json` completo para CI Linux (`@emnapi/*`) | `npm ci` de Cloudflare fallaba por faltar deps optional de sharp solo en Linux/wasm |
+| 2026-09-07 | Resumen diario PDF/CSV (admin: peajes/petróleo/otros; cliente: solo peajes) | Visión consolidada por día de km y gastos, descargable en rango de fechas |

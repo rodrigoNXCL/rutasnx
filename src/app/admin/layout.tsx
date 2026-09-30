@@ -21,6 +21,7 @@ export default async function AdminLayout({
               <a href="/admin/clientes" className="text-zinc-400 hover:text-white transition-colors">Clientes</a>
               <a href="/admin/servicios" className="text-zinc-400 hover:text-white transition-colors">Servicios</a>
               <a href="/admin/reportes" className="text-zinc-400 hover:text-white transition-colors">Reportes</a>
+              <a href="/admin/resumen" className="text-zinc-400 hover:text-white transition-colors">Resumen Diario</a>
               <a href="/admin/usuarios" className="text-zinc-400 hover:text-white transition-colors">Usuarios</a>
               <form action="/api/auth/logout" method="POST" className="inline">
                 <button type="submit" className="text-zinc-500 hover:text-red-400 transition-colors">Cerrar</button>
