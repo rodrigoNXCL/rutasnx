@@ -377,6 +377,121 @@ export interface Database {
           }
         ]
       }
+      valor_km: {
+        Row: {
+          id: string
+          empresa_id: string
+          valor: number
+          fecha_desde: string
+          fecha_hasta: string
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          valor: number
+          fecha_desde: string
+          fecha_hasta: string
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['valor_km']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'valor_km_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'valor_km_created_by_fkey'
+            columns: ['created_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      valor_km_historial: {
+        Row: {
+          id: string
+          valor_km_id: string
+          empresa_id: string
+          accion: string
+          valor_anterior: number | null
+          valor_nuevo: number
+          fecha_desde_anterior: string | null
+          fecha_hasta_anterior: string | null
+          fecha_desde_nuevo: string
+          fecha_hasta_nuevo: string
+          changed_by: string | null
+          changed_at: string
+        }
+        Insert: {
+          id?: string
+          valor_km_id: string
+          empresa_id: string
+          accion: string
+          valor_anterior?: number | null
+          valor_nuevo: number
+          fecha_desde_anterior?: string | null
+          fecha_hasta_anterior?: string | null
+          fecha_desde_nuevo: string
+          fecha_hasta_nuevo: string
+          changed_by?: string | null
+          changed_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['valor_km_historial']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'valor_km_historial_valor_km_id_fkey'
+            columns: ['valor_km_id']
+            referencedRelation: 'valor_km'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'valor_km_historial_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'valor_km_historial_changed_by_fkey'
+            columns: ['changed_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      cliente_usuarios: {
+        Row: {
+          id: string
+          cliente_id: string
+          usuario_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          cliente_id: string
+          usuario_id: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['cliente_usuarios']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'cliente_usuarios_cliente_id_fkey'
+            columns: ['cliente_id']
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cliente_usuarios_usuario_id_fkey'
+            columns: ['usuario_id']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
     }
     Views: {}
     Functions: {}
@@ -393,6 +508,9 @@ export type Servicio = Database['public']['Tables']['servicios']['Row']
 export type Asignacion = Database['public']['Tables']['asignaciones']['Row']
 export type Viaje = Database['public']['Tables']['viajes']['Row']
 export type Gasto = Database['public']['Tables']['gastos']['Row']
+export type ValorKm = Database['public']['Tables']['valor_km']['Row']
+export type ValorKmHistorial = Database['public']['Tables']['valor_km_historial']['Row']
+export type ClienteUsuario = Database['public']['Tables']['cliente_usuarios']['Row']
 
 export interface SesionUsuario {
   id: string

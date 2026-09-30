@@ -10,7 +10,12 @@ export async function GET() {
 
     const { data: clientes, error } = await supabase
       .from('clientes')
-      .select('*')
+      .select(`
+        *,
+        cliente_usuarios (
+          usuarios (id, email, nombre, activo, ultimo_login)
+        )
+      `)
       .eq('empresa_id', session.empresa_id)
       .order('nombre')
 
@@ -101,6 +106,12 @@ export async function POST(request: Request) {
 
     if (errorCliente) {
       return NextResponse.json({ error: errorCliente.message }, { status: 500 })
+    }
+
+    if (usuario_id) {
+      await supabase
+        .from('cliente_usuarios')
+        .insert({ cliente_id: cliente.id, usuario_id })
     }
 
     return NextResponse.json({

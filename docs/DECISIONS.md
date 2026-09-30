@@ -68,6 +68,18 @@
 - `/admin/resumen` + `GET /api/admin/resumen-diario`: columnas fecha, km del día, total peajes, total petróleo y otros gastos.
 - `/cliente/resumen` + `GET /api/cliente/resumen-diario`: mismo resumen pero el cliente ve **solo peajes** (regla de visibilidad del portal cliente).
 - Se genera en un rango de fechas de ruta (`desde`/`hasta`), solo rutas terminadas, con bloque de totales.
+- **Resumen Diario quedó integrado dentro de Reportes** (tabs: Informes / Resumen Diario / Valorizador KM) para mantener el dashboard ordenado.
+
+### Valorizador de Kilometraje (solo admin)
+- Tabla `valor_km`: `valor` (CLP por km), `fecha_desde`, `fecha_hasta`, `created_by`. Validación de solapamiento de rangos por empresa.
+- Tabla `valor_km_historial`: auditoría de cada creación/modificación/eliminación (valor anterior/nuevo, rangos, usuario, fecha).
+- `/admin/valorizador`: gestión (CRUD) + historial de cambios. El listado se exporta en PDF/CSV desde el tab "Valorizador KM" de Reportes.
+
+### Multi-usuario por Cliente
+- Tabla `cliente_usuarios` (cliente_id, usuario_id): relación muchos a muchos entre clientes y usuarios de login.
+- Se mantiene `clientes.usuario_id` como usuario principal (backward compat).
+- Los APIs de cliente resuelven el cliente vía `cliente_usuarios` (un usuario puede estar asociado a varios clientes y viceversa).
+- La gestión se hace desde Clientes → "N usuarios" (agregar/quitar logins).
 
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
@@ -92,3 +104,6 @@
 | 2026-09-07 | Consulta de usuarios activos en admin | Permite al admin ver las cuentas de login de su empresa y su actividad |
 | 2026-09-07 | Regenerar `package-lock.json` completo para CI Linux (`@emnapi/*`) | `npm ci` de Cloudflare fallaba por faltar deps optional de sharp solo en Linux/wasm |
 | 2026-09-07 | Resumen diario PDF/CSV (admin: peajes/petróleo/otros; cliente: solo peajes) | Visión consolidada por día de km y gastos, descargable en rango de fechas |
+| 2026-09-07 | Resumen Diario integrado dentro de Reportes (tabs) | Mantener el dashboard ordenado |
+| 2026-09-07 | Valorizador de km con historial de auditoría | Valorizar rutas por rango de fechas con trazabilidad de cambios |
+| 2026-09-07 | Multi-usuario por cliente (tabla cliente_usuarios) | Varios logins pueden acceder a la info de un mismo cliente |

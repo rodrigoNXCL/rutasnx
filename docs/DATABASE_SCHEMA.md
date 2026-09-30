@@ -124,6 +124,42 @@ Migraciones SQL en `supabase/migrations/001_schema_v2.sql`.
 | foto_url | text | |
 | created_at | timestamptz | default now() |
 
+#### valor_km
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| valor | int | NOT NULL, CHECK >= 0 |
+| fecha_desde | date | NOT NULL |
+| fecha_hasta | date | NOT NULL, CHECK >= fecha_desde |
+| created_by | uuid | FK → usuarios.id, SET NULL |
+| created_at | timestamptz | default now() |
+
+#### valor_km_historial
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| valor_km_id | uuid | FK → valor_km.id, NOT NULL |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| accion | text | NOT NULL, CHECK IN ('creado','modificado','eliminado') |
+| valor_anterior | int | |
+| valor_nuevo | int | NOT NULL |
+| fecha_desde_anterior | date | |
+| fecha_hasta_anterior | date | |
+| fecha_desde_nuevo | date | NOT NULL |
+| fecha_hasta_nuevo | date | NOT NULL |
+| changed_by | uuid | FK → usuarios.id, SET NULL |
+| changed_at | timestamptz | default now() |
+
+#### cliente_usuarios
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| cliente_id | uuid | FK → clientes.id, NOT NULL |
+| usuario_id | uuid | FK → usuarios.id, NOT NULL |
+| created_at | timestamptz | default now() |
+| | | UNIQUE(cliente_id, usuario_id) |
+
 ## RLS Policies
 
 Implementadas en el SQL de migración para todos los roles.

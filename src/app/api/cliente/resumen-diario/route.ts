@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getClienteIdsForUsuario } from '@/lib/cliente'
 
 export async function GET(request: Request) {
   try {
@@ -18,21 +19,16 @@ export async function GET(request: Request) {
 
     const supabase = createAdminClient()
 
-    const { data: cliente } = await supabase
-      .from('clientes')
-      .select('id')
-      .eq('usuario_id', session.id)
-      .eq('empresa_id', session.empresa_id)
-      .single()
+    const clienteIds = await getClienteIdsForUsuario(supabase, session)
 
-    if (!cliente) {
+    if (clienteIds.length === 0) {
       return Response.json([])
     }
 
     const { data: servicios, error: errServicios } = await supabase
       .from('servicios')
       .select('id')
-      .eq('cliente_id', cliente.id)
+      .in('cliente_id', clienteIds)
 
     if (errServicios) {
       return Response.json({ error: errServicios.message }, { status: 500 })

@@ -30,7 +30,7 @@ function formatCLP(monto: number): string {
   return '$' + monto.toLocaleString('es-CL')
 }
 
-export default function AdminResumenDiario() {
+export default function ResumenDiarioTab() {
   const [hasta, setHasta] = useState(todayChile())
   const [desde, setDesde] = useState(() => {
     const d = new Date()

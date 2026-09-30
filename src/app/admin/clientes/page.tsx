@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react'
 
+interface UsuarioVinculado {
+  id: string
+  email: string
+  nombre: string
+  activo: boolean
+  ultimo_login: string | null
+}
+
 interface Cliente {
   id: string
   nombre: string
@@ -10,7 +18,7 @@ interface Cliente {
   email: string | null
   activo: boolean
   created_at: string
-  usuarios: { email: string } | null
+  cliente_usuarios: { usuarios: UsuarioVinculado | null }[]
 }
 
 export default function ClientesPage() {
@@ -18,6 +26,9 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editCliente, setEditCliente] = useState<Cliente | null>(null)
+  const [showUsuarios, setShowUsuarios] = useState<Cliente | null>(null)
+  const [nuevoUsuario, setNuevoUsuario] = useState({ email: '', nombre: '', password: '' })
+  const [savingUsuario, setSavingUsuario] = useState(false)
   const [form, setForm] = useState({
     nombre: '',
     rut: '',
@@ -143,8 +154,13 @@ export default function ClientesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    {cliente.usuarios ? (
-                      <span className="text-xs text-emerald-400">{cliente.usuarios.email}</span>
+                    {cliente.cliente_usuarios.length > 0 ? (
+                      <button
+                        onClick={() => setShowUsuarios(cliente)}
+                        className="text-xs text-emerald-400 hover:underline"
+                      >
+                        {cliente.cliente_usuarios.length} usuario{cliente.cliente_usuarios.length !== 1 ? 's' : ''}
+                      </button>
                     ) : (
                       <span className="text-xs text-zinc-600">Sin acceso</span>
                     )}
@@ -166,6 +182,107 @@ export default function ClientesPage() {
           </div>
         )}
       </div>
+
+      {showUsuarios && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowUsuarios(null)}>
+          <div className="rounded-xl p-6 w-full max-w-lg border" style={{ background: '#141414', borderColor: '#2A2A2A' }} onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-white mb-1">Usuarios del cliente</h2>
+            <p className="text-sm text-zinc-500 mb-5">{showUsuarios.nombre}</p>
+
+            <div className="space-y-2 mb-6">
+              {showUsuarios.cliente_usuarios.length === 0 ? (
+                <p className="text-sm text-zinc-600">Sin usuarios vinculados</p>
+              ) : (
+                showUsuarios.cliente_usuarios.map((cu) =>
+                  cu.usuarios ? (
+                    <div key={cu.usuarios.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: '#1A1A1A' }}>
+                      <div>
+                        <p className="text-sm text-white">{cu.usuarios.nombre}</p>
+                        <p className="text-xs text-zinc-500">{cu.usuarios.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${cu.usuarios.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                          {cu.usuarios.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('¿Quitar acceso de este usuario?')) return
+                            await fetch(`/api/clientes/${showUsuarios.id}/usuarios/${cu.usuarios!.id}`, { method: 'DELETE' })
+                            fetchClientes()
+                            setShowUsuarios(null)
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  ) : null
+                )
+              )}
+            </div>
+
+            <div className="border-t border-zinc-800 pt-4">
+              <p className="text-sm font-medium text-white mb-3">Agregar usuario</p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={nuevoUsuario.nombre}
+                  onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, nombre: e.target.value })}
+                  placeholder="Nombre"
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
+                <input
+                  type="email"
+                  value={nuevoUsuario.email}
+                  onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, email: e.target.value })}
+                  placeholder="Email (login)"
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
+                <input
+                  type="password"
+                  value={nuevoUsuario.password}
+                  onChange={(e) => setNuevoUsuario({ ...nuevoUsuario, password: e.target.value })}
+                  placeholder="Contraseña"
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                />
+                <button
+                  onClick={async () => {
+                    setSavingUsuario(true)
+                    try {
+                      const res = await fetch(`/api/clientes/${showUsuarios.id}/usuarios`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(nuevoUsuario),
+                      })
+                      if (res.ok) {
+                        setNuevoUsuario({ email: '', nombre: '', password: '' })
+                        fetchClientes()
+                        setShowUsuarios(null)
+                      } else {
+                        const data = await res.json().catch(() => ({}))
+                        alert(data.error || 'Error al agregar usuario')
+                      }
+                    } catch (error) {
+                      console.error('Error:', error)
+                    } finally {
+                      setSavingUsuario(false)
+                    }
+                  }}
+                  disabled={savingUsuario}
+                  className="w-full text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                  style={{ background: '#10B981' }}
+                >
+                  {savingUsuario ? 'Agregando...' : 'Agregar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={() => setShowModal(false)}>
