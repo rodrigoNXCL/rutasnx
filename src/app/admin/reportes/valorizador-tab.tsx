@@ -1,16 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-interface ValorKm {
-  id: string
-  valor: number
-  fecha_desde: string
-  fecha_hasta: string
-  created_by: string | null
-  created_at: string
+interface DiaResumen {
+  fecha: string
+  total_km: number
+  valor_km: number | null
+  valor_total: number | null
+  peaje: number
+  petroleo: number
+  otros: number
+}
+
+function todayChile(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
 }
 
 function toChileanDate(dateStr: string): string {
@@ -27,83 +32,133 @@ function formatCLP(monto: number): string {
   return '$' + monto.toLocaleString('es-CL')
 }
 
-function formatFechaHora(dt: string): string {
-  return new Date(dt).toLocaleString('es-CL', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'America/Santiago',
-  })
-}
-
 export default function ValorizadorTab() {
-  const [valores, setValores] = useState<ValorKm[]>([])
-  const [loading, setLoading] = useState(true)
+  const [hasta, setHasta] = useState(todayChile())
+  const [desde, setDesde] = useState(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+  })
+  const [dias, setDias] = useState<DiaResumen[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [descargando, setDescargando] = useState<'csv' | 'pdf' | null>(null)
 
-  useEffect(() => {
-    fetch('/api/admin/valorizador')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setValores(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  async function fetchDias() {
+    if (!desde || !hasta) return
+    setLoading(true)
+    setError('')
+    setDias([])
+    try {
+      const params = new URLSearchParams({ desde, hasta })
+      const res = await fetch(`/api/admin/resumen-diario?${params}`)
+      if (res.ok) {
+        setDias(await res.json())
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Error al generar resumen')
+      }
+    } catch {
+      setError('Error de conexión')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   function handleDescargarCSV() {
-    if (valores.length === 0) return
+    if (dias.length === 0) return
     setDescargando('csv')
     const sep = ';'
-    const encabezados = ['Desde', 'Hasta', 'Valor por km', 'Creada']
-    const rows = valores.map((v) => [
-      v.fecha_desde,
-      v.fecha_hasta,
-      String(v.valor),
-      v.created_at,
+    const encabezados = ['Fecha', 'Kilómetros', 'Valor km', 'Valor total', 'Peajes', 'Petróleo', 'Otros Gastos']
+    const rows = dias.map((d) => [
+      d.fecha,
+      String(d.total_km),
+      d.valor_km != null ? String(d.valor_km) : '',
+      d.valor_total != null ? String(d.valor_total) : '',
+      String(d.peaje),
+      String(d.petroleo),
+      String(d.otros),
     ])
     const csv = [
-      'Valorizaciones de Kilometraje',
+      `Resumen Diario Valorizado,${desde},${hasta}`,
       '',
       encabezados.join(sep),
       ...rows.map((row) => row.join(sep)),
+      '',
+      `Total km,${dias.reduce((s, d) => s + d.total_km, 0)}`,
+      `Total valorizado,${dias.reduce((s, d) => s + (d.valor_total ?? 0), 0)}`,
+      `Total peajes,${dias.reduce((s, d) => s + d.peaje, 0)}`,
+      `Total petróleo,${dias.reduce((s, d) => s + d.petroleo, 0)}`,
+      `Total otros,${dias.reduce((s, d) => s + d.otros, 0)}`,
     ].join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'valorizaciones-km.csv'
+    a.download = `resumen-valorizado-${desde}-${hasta}.csv`
     a.click()
     URL.revokeObjectURL(url)
     setTimeout(() => setDescargando(null), 500)
   }
 
   function handleDescargarPDF() {
-    if (valores.length === 0) return
+    if (dias.length === 0) return
     setDescargando('pdf')
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const pageW = doc.internal.pageSize.getWidth()
 
     doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
-    doc.text('Valorizaciones de Kilometraje', 14, 16)
+    doc.text('Resumen Diario Valorizado', 14, 16)
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Registro: ${valores.length} valorización${valores.length !== 1 ? 'es' : ''}`, 14, 24)
+    doc.text(
+      `Periodo: ${toChileanDate(desde)} al ${toChileanDate(hasta)}  |  Días con rutas: ${dias.length}`,
+      14,
+      24
+    )
 
     autoTable(doc, {
       startY: 30,
-      head: [['Desde', 'Hasta', 'Valor por km', 'Creada']],
-      body: valores.map((v) => [
-        toChileanDate(v.fecha_desde),
-        toChileanDate(v.fecha_hasta),
-        formatCLP(v.valor),
-        formatFechaHora(v.created_at),
+      head: [['Fecha', 'Kilómetros', 'Valor km', 'Valor total', 'Peajes', 'Petróleo', 'Otros']],
+      body: dias.map((d) => [
+        d.fecha,
+        `${d.total_km.toLocaleString('es-CL')} km`,
+        d.valor_km != null ? formatCLP(d.valor_km) : '—',
+        d.valor_total != null ? formatCLP(d.valor_total) : '—',
+        formatCLP(d.peaje),
+        formatCLP(d.petroleo),
+        formatCLP(d.otros),
       ]),
-      styles: { fontSize: 9, cellPadding: 3 },
+      styles: { fontSize: 8, cellPadding: 2.5 },
       headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
       alternateRowStyles: { fillColor: [245, 245, 245] },
+      margin: { left: 14, right: 14 },
+    })
+
+    const totalKm = dias.reduce((s, d) => s + d.total_km, 0)
+    const totalValorizado = dias.reduce((s, d) => s + (d.valor_total ?? 0), 0)
+    const totalPeaje = dias.reduce((s, d) => s + d.peaje, 0)
+    const totalPetroleo = dias.reduce((s, d) => s + d.petroleo, 0)
+    const totalOtros = dias.reduce((s, d) => s + d.otros, 0)
+
+    const cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
+
+    autoTable(doc, {
+      startY: cursor,
+      head: [['Totales', '']],
+      body: [
+        ['Días con rutas', String(dias.length)],
+        ['Total km', `${totalKm.toLocaleString('es-CL')} km`],
+        ['Total valorizado', formatCLP(totalValorizado)],
+        ['Total peajes', formatCLP(totalPeaje)],
+        ['Total petróleo', formatCLP(totalPetroleo)],
+        ['Total otros', formatCLP(totalOtros)],
+      ],
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
+      columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
       margin: { left: 14, right: 14 },
     })
 
@@ -116,75 +171,160 @@ export default function ValorizadorTab() {
       { align: 'right' }
     )
 
-    doc.save('valorizaciones-km.pdf')
+    doc.save(`resumen-valorizado-${desde}-${hasta}.pdf`)
     setTimeout(() => setDescargando(null), 500)
-  }
-
-  if (loading) {
-    return <div className="p-8 text-sm text-zinc-500">Cargando...</div>
   }
 
   return (
     <div>
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <p className="text-sm text-zinc-400">
-          <span className="text-white font-medium">{valores.length}</span> valorización{valores.length !== 1 ? 'es' : ''} registrada{valores.length !== 1 ? 's' : ''}
-        </p>
-        <div className="flex gap-2">
+      <div className="rounded-xl border p-5 mb-8" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+        <p className="text-sm text-zinc-400 mb-4">Selecciona el periodo para ver el resumen diario valorizado (km × valor por km)</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Desde</label>
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
+              style={{ background: '#1A1A1A', border: '1px solid #2A2A2A' }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Hasta</label>
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm text-white outline-none"
+              style={{ background: '#1A1A1A', border: '1px solid #2A2A2A' }}
+            />
+          </div>
           <button
-            onClick={handleDescargarCSV}
-            disabled={descargando === 'csv'}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
-            style={{ background: '#2A2A2A' }}
-          >
-            {descargando === 'csv' ? 'Descargando...' : 'CSV'}
-          </button>
-          <button
-            onClick={handleDescargarPDF}
-            disabled={descargando === 'pdf'}
+            onClick={fetchDias}
+            disabled={loading || !desde || !hasta}
             className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
             style={{ background: '#10B981' }}
           >
-            {descargando === 'pdf' ? 'Descargando...' : 'PDF'}
+            {loading ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
       </div>
 
-      {valores.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-zinc-500">Sin valorizaciones registradas</p>
+      {error && (
+        <div className="mb-5 p-4 rounded-xl border" style={{ background: '#2D1515', borderColor: '#5D2020' }}>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
-      ) : (
-        <div className="rounded-xl border overflow-hidden" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
-          <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
-            <span>Desde</span>
-            <span>Hasta</span>
-            <span>Valor por km</span>
-            <span>Creada</span>
-          </div>
-          {valores.map((v) => (
-            <div
-              key={v.id}
-              className="grid grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr] gap-2 md:gap-4 px-5 py-3.5 border-b border-zinc-800 last:border-b-0 items-center"
-            >
-              <div>
-                <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Desde</span>
-                <span className="text-sm text-white">{toChileanDate(v.fecha_desde)}</span>
-              </div>
-              <div>
-                <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Hasta</span>
-                <span className="text-sm text-white">{toChileanDate(v.fecha_hasta)}</span>
-              </div>
-              <div>
-                <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Valor</span>
-                <span className="text-sm font-medium text-emerald-400">{formatCLP(v.valor)}</span>
-              </div>
-              <div>
-                <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Creada</span>
-                <span className="text-xs text-zinc-400">{formatFechaHora(v.created_at)}</span>
-              </div>
+      )}
+
+      {dias.length > 0 && (
+        <>
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+              <p className="text-sm text-zinc-400">
+                <span className="text-white font-medium">{dias.length}</span> día{dias.length !== 1 ? 's' : ''} con rutas del{' '}
+                <span className="text-white">{toChileanDate(desde)}</span> al{' '}
+                <span className="text-white">{toChileanDate(hasta)}</span>
+              </p>
             </div>
-          ))}
+            <div className="flex gap-2">
+              <button
+                onClick={handleDescargarCSV}
+                disabled={descargando === 'csv'}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
+                style={{ background: '#2A2A2A' }}
+              >
+                {descargando === 'csv' ? 'Descargando...' : 'CSV'}
+              </button>
+              <button
+                onClick={handleDescargarPDF}
+                disabled={descargando === 'pdf'}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
+                style={{ background: '#10B981' }}
+              >
+                {descargando === 'pdf' ? 'Descargando...' : 'PDF'}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border overflow-hidden" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
+            <div className="hidden md:grid grid-cols-[1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr_0.8fr] gap-3 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
+              <span>Fecha</span>
+              <span>Kilómetros</span>
+              <span>Valor km</span>
+              <span>Valor total</span>
+              <span>Peajes</span>
+              <span>Petróleo</span>
+              <span>Otros</span>
+            </div>
+
+            {dias.map((d) => (
+              <div
+                key={d.fecha}
+                className="grid grid-cols-2 md:grid-cols-[1fr_0.8fr_0.8fr_1fr_0.8fr_0.8fr_0.8fr] gap-2 md:gap-3 px-5 py-3.5 border-b border-zinc-800 last:border-b-0 items-center"
+              >
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Fecha</span>
+                  <span className="text-sm text-white">{toChileanDate(d.fecha)}</span>
+                </div>
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Km</span>
+                  <span className="text-sm font-medium text-emerald-400">{d.total_km.toLocaleString('es-CL')} km</span>
+                </div>
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Valor km</span>
+                  <span className="text-sm text-zinc-400">{d.valor_km != null ? formatCLP(d.valor_km) : '—'}</span>
+                </div>
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Valor total</span>
+                  <span className="text-sm font-medium text-white">{d.valor_total != null ? formatCLP(d.valor_total) : '—'}</span>
+                </div>
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Peajes</span>
+                  <span className="text-sm text-zinc-400">{d.peaje > 0 ? formatCLP(d.peaje) : '—'}</span>
+                </div>
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Petróleo</span>
+                  <span className="text-sm text-zinc-400">{d.petroleo > 0 ? formatCLP(d.petroleo) : '—'}</span>
+                </div>
+                <div>
+                  <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Otros</span>
+                  <span className="text-sm text-zinc-400">{d.otros > 0 ? formatCLP(d.otros) : '—'}</span>
+                </div>
+              </div>
+            ))}
+
+            <div className="px-5 py-3 border-t border-zinc-700 flex flex-wrap items-center justify-between gap-2" style={{ background: '#1A1A1A' }}>
+              <span className="text-sm font-medium text-zinc-400">
+                Total: {dias.length} día{dias.length !== 1 ? 's' : ''}
+              </span>
+              <span className="text-sm font-medium text-white">
+                Km: {dias.reduce((s, d) => s + d.total_km, 0).toLocaleString('es-CL')}
+              </span>
+              <span className="text-sm font-medium text-emerald-400">
+                Valorizado: {formatCLP(dias.reduce((s, d) => s + (d.valor_total ?? 0), 0))}
+              </span>
+              <span className="text-sm font-medium text-white">
+                Peajes: {formatCLP(dias.reduce((s, d) => s + d.peaje, 0))}
+              </span>
+              <span className="text-sm font-medium text-white">
+                Petróleo: {formatCLP(dias.reduce((s, d) => s + d.petroleo, 0))}
+              </span>
+              <span className="text-sm font-medium text-white">
+                Otros: {formatCLP(dias.reduce((s, d) => s + d.otros, 0))}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {!loading && dias.length === 0 && !error && (
+        <div className="text-center py-16">
+          <p className="text-sm text-zinc-500">
+            Selecciona un periodo y haz clic en &quot;Buscar&quot; para ver el resumen valorizado
+          </p>
         </div>
       )}
     </div>

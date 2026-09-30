@@ -47,6 +47,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    const { data: valoresKm } = await supabase
+      .from('valor_km')
+      .select('valor, fecha_desde, fecha_hasta')
+      .eq('empresa_id', session.empresa_id)
+
     const porFecha = new Map<string, { km: number; peaje: number; petroleo: number; otros: number }>()
 
     for (const viaje of viajes || []) {
@@ -66,13 +71,21 @@ export async function GET(request: Request) {
 
     const dias = Array.from(porFecha.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([fecha, t]) => ({
-        fecha,
-        total_km: t.km,
-        peaje: t.peaje,
-        petroleo: t.petroleo,
-        otros: t.otros,
-      }))
+      .map(([fecha, t]) => {
+        const valorKm = (valoresKm || []).find(
+          (v) => v.fecha_desde <= fecha && v.fecha_hasta >= fecha
+        )
+        const valor = valorKm?.valor ?? null
+        return {
+          fecha,
+          total_km: t.km,
+          valor_km: valor,
+          valor_total: valor != null ? t.km * valor : null,
+          peaje: t.peaje,
+          petroleo: t.petroleo,
+          otros: t.otros,
+        }
+      })
 
     return NextResponse.json(dias)
   } catch (error) {

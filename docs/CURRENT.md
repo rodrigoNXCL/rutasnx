@@ -87,7 +87,7 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 - `GET /api/cliente/informes` - Informe de rutas terminadas del cliente en un periodo (solo gastos `peaje`)
 - `GET /api/admin/informes` - Informe de rutas terminadas de la empresa en un periodo (todos los gastos + URLs de imágenes km/gastos)
 - `GET /api/admin/usuarios` - Usuarios (cuentas de login) de la empresa, con filtro por activos/rol
-- `GET /api/admin/resumen-diario` - Resumen diario de la empresa (fecha, km, peajes, petróleo, otros)
+- `GET /api/admin/resumen-diario` - Resumen diario de la empresa (fecha, km, valor km, valor total, peajes, petróleo, otros)
 - `GET /api/cliente/resumen-diario` - Resumen diario del cliente (fecha, km, peajes)
 - `GET/POST/PUT/DELETE /api/admin/valorizador` - CRUD de valorizaciones de km (con auditoría en `valor_km_historial`)
 - `GET /api/admin/valorizador/historial` - Historial de cambios del valorizador
