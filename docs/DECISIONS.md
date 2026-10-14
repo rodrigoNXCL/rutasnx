@@ -82,6 +82,14 @@
 - Los APIs de cliente resuelven el cliente vía `cliente_usuarios` (un usuario puede estar asociado a varios clientes y viceversa).
 - La gestión se hace desde Clientes → "N usuarios" (agregar/quitar logins).
 
+### Cambio de Camión en un Servicio (misma ruta, otro vehículo)
+- **Regla de negocio**: cuando un camión sale de un servicio (ej. va a mantención o se reasigna) y entra otro, el chofer se mantiene y solo cambia el camión. No es un cambio a mitad de ruta, sino desde el siguiente día.
+- **Los viajes guardan su propio `camion_id`**, independiente de la asignación: las rutas ya registradas con el camión viejo conservan su patente y **no se pierden ni se modifican** al cambiar la asignación.
+- **La asignación solo habilita al chofer para iniciar el día** (le indica qué camión manejar en qué servicio). Para el cambio:
+  1. Admin crea una **asignación nueva** (chofer + camión nuevo + mismo servicio).
+  2. Admin **desactiva** la asignación vieja (badge "Activo" → "Inactivo"). Queda como historial.
+- **Los informes y el resumen diario no se afectan**: filtran por `empresa_id` + rango de fechas + estado, **no por camión** (el filtro por camión es opcional). Un mes con rutas de dos camiones distintos se agrega automáticamente en totales, detalle y valorización; el detalle muestra la patente de cada viaje para identificar el camión.
+
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
 - `/admin/*` → admin, superadmin
@@ -108,3 +116,4 @@
 | 2026-09-07 | Resumen Diario integrado dentro de Reportes (tabs) | Mantener el dashboard ordenado |
 | 2026-09-07 | Valorizador de km con historial de auditoría | Valorizar rutas por rango de fechas con trazabilidad de cambios |
 | 2026-09-07 | Multi-usuario por cliente (tabla cliente_usuarios) | Varios logins pueden acceder a la info de un mismo cliente |
+| 2026-10-14 | Cambio de camión en un servicio = asignación nueva + desactivar la vieja | Viajes conservan su camion_id; informes agregan por empresa+fecha sin filtrar por camión, por lo que un mes con dos camiones no se afecta |
