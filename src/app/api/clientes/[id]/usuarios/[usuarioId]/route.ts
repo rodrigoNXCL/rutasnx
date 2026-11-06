@@ -22,10 +22,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
     }
 
-    if (cliente.usuario_id === usuarioId) {
+    const { data: vinculo } = await supabase
+      .from('cliente_usuarios')
+      .select('id')
+      .eq('cliente_id', id)
+      .eq('usuario_id', usuarioId)
+      .maybeSingle()
+
+    if (!vinculo) {
       return NextResponse.json(
-        { error: 'No puedes quitar el usuario principal del cliente' },
-        { status: 400 }
+        { error: 'El usuario no tiene acceso a este cliente' },
+        { status: 404 }
       )
     }
 
@@ -37,6 +44,37 @@ export async function DELETE(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    if (cliente.usuario_id === usuarioId) {
+      const { data: siguiente } = await supabase
+        .from('cliente_usuarios')
+        .select('usuario_id')
+        .eq('cliente_id', id)
+        .limit(1)
+        .maybeSingle()
+
+      const { error: errorPrincipal } = await supabase
+        .from('clientes')
+        .update({ usuario_id: siguiente?.usuario_id ?? null })
+        .eq('id', id)
+
+      if (errorPrincipal) {
+        return NextResponse.json({ error: errorPrincipal.message }, { status: 500 })
+      }
+    }
+
+    const { count } = await supabase
+      .from('cliente_usuarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('usuario_id', usuarioId)
+
+    if (!count) {
+      await supabase
+        .from('usuarios')
+        .update({ activo: false })
+        .eq('id', usuarioId)
+        .eq('empresa_id', session.empresa_id)
     }
 
     return NextResponse.json({ success: true })

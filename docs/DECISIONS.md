@@ -151,3 +151,5 @@
 | 2026-10-14 | Cambio de camión en un servicio = asignación nueva + desactivar la vieja | Viajes conservan su camion_id; informes agregan por empresa+fecha sin filtrar por camión, por lo que un mes con dos camiones no se afecta |
 | 2026-11-06 | `PuntosRuta` nunca se anida dentro de otro `<form>` | Formularios anidados disparan el submit del formulario externo (cierre de ruta) y rompen el guardado de puntos |
 | 2026-11-06 | `orden` de un punto nuevo = máximo histórico (incluye anulados) + 1 | Evita colisiones con `UNIQUE(viaje_id, orden)` cuando existen puntos anulados |
+| 2026-11-06 | Acceso al portal se gestiona vía `cliente_usuarios` | Permite agregar/quitar acceso (incluido el usuario principal); se limpia `clientes.usuario_id` y se desactiva la cuenta si no tiene más clientes |
+| 2026-11-06 | Re-agregar un email existente reutiliza la cuenta | Se reactiva y re-vincula en vez de crear usuarios duplicados |

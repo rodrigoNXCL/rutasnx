@@ -162,7 +162,12 @@ export default function ClientesPage() {
                         {cliente.cliente_usuarios.length} usuario{cliente.cliente_usuarios.length !== 1 ? 's' : ''}
                       </button>
                     ) : (
-                      <span className="text-xs text-zinc-600">Sin acceso</span>
+                      <button
+                        onClick={() => setShowUsuarios(cliente)}
+                        className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
+                      >
+                        Sin acceso
+                      </button>
                     )}
                     <span className={`text-xs px-2.5 py-1 rounded-full ${
                       cliente.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
@@ -223,7 +228,10 @@ export default function ClientesPage() {
             </div>
 
             <div className="border-t border-zinc-800 pt-4">
-              <p className="text-sm font-medium text-white mb-3">Agregar usuario</p>
+              <p className="text-sm font-medium text-white mb-1">Agregar usuario</p>
+              <p className="text-xs text-zinc-600 mb-3">
+                Si el email ya existe en el portal, solo se le vuelve a habilitar el acceso.
+              </p>
               <div className="space-y-3">
                 <input
                   type="text"
@@ -331,7 +339,30 @@ export default function ClientesPage() {
                 />
               </div>
 
-              {!editCliente && (
+              {editCliente ? (
+                <div className="border-t border-zinc-800 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-zinc-400">Acceso al portal</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {editCliente.cliente_usuarios.length > 0
+                          ? `${editCliente.cliente_usuarios.length} usuario${editCliente.cliente_usuarios.length !== 1 ? 's' : ''} con acceso`
+                          : 'Sin acceso'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false)
+                        setShowUsuarios(editCliente)
+                      }}
+                      className="text-xs text-emerald-400 hover:text-emerald-300"
+                    >
+                      Gestionar acceso
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <div className="border-t border-zinc-800 pt-4">
                   <div className="flex items-center gap-2 mb-4">
                     <input
