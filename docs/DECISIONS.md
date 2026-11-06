@@ -26,6 +26,25 @@
 - Un chofer puede tener múltiples asignaciones (distintos servicios).
 - Campo `activo` para activar/pausar sin eliminar.
 
+### Creación automática de admin
+- Al crear una empresa desde el dashboard super‑admin, se genera automáticamente un usuario‑admin vinculado a esa empresa.
+- El admin recibe un email derivado del RUT de la empresa (formato `admin@<rut>.cl`) y una password definida en el formulario de creación.
+- El admin tiene acceso exclusivo a los datos de su empresa (los endpoints de admin filtran por `empresa_id`).
+- El super‑admin puede reasignar el admin a otra empresa mediante la actualización del campo `empresa_id` en `usuarios`.
+
+### Roles
+- `superadmin`: solo existe a nivel plataforma (1-2 usuarios).
+- `admin`: uno por empresa.
+- `chofer`: empleados de la empresa.
+- `cliente`: contratantes del servicio.
+
+### Reglas de Negocio
+- Fecha chilena forzada (America/Santiago).
+- km_termino >= km_inicio (CHECK en BD).
+- Se permiten múltiples rutas por camión/día; solo una `en_curso` por camión y por chofer (índices únicos parciales).
+- `viajes.fecha` es la fecha de inicio; si la ruta cruza medianoche, puntos y cierre mantienen esa fecha.
+- Montos en CLP (enteros, sin decimales).
+
 ### Roles
 - `superadmin`: solo existe a nivel plataforma (1-2 usuarios).
 - `admin`: uno por empresa.

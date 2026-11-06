@@ -14,6 +14,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ### Estado de Configuración
 - [x] Variables de entorno configuradas
+- [x] Dashboard admin: creaci�n de empresa + usuario admin automtico
 - [x] SQL v2.0 aplicado
 - [x] Tabla asignaciones creada
 - [x] Bucket 'gastos' configurado (políticas públicas de lectura)
