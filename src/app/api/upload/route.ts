@@ -1,17 +1,21 @@
 import { NextResponse } from 'next/server'
-import { requireChofer } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/client'
+
+const ALLOWED_BUCKETS = new Set(['gastos', 'km-fotos', 'guias'])
 
 export async function POST(request: Request) {
   try {
-    await requireChofer()
+    await requireRole(['chofer', 'admin', 'superadmin'])
     const supabaseAdmin = createAdminClient()
-    const supabase = createClient()
 
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const bucket = formData.get('bucket') as string || 'gastos'
+    const bucket = (formData.get('bucket') as string) || 'gastos'
+
+    if (!ALLOWED_BUCKETS.has(bucket)) {
+      return NextResponse.json({ error: 'Bucket no permitido' }, { status: 400 })
+    }
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -32,7 +36,7 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const { data, error } = await supabaseAdmin.storage
+    const { error } = await supabaseAdmin.storage
       .from(bucket)
       .upload(fileName, buffer, {
         contentType: file.type,

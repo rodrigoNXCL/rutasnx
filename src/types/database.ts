@@ -9,14 +9,10 @@ export type Json =
 export type Rol = 'superadmin' | 'admin' | 'chofer' | 'cliente'
 export type TipoGasto = 'combustible' | 'peaje' | 'comida' | 'mecanico' | 'otro'
 export type EstadoViaje = 'en_curso' | 'terminado'
-
-type Relationship = {
-  foreignKeyName: string
-  columns: string[]
-  isOneToOne?: boolean
-  referencedRelation: string
-  referencedColumns: string[]
-}
+export type FlujoServicio = 'simple' | 'puntos'
+export type TipoPunto = 'retiro' | 'entrega'
+export type AccionPuntoHistorial = 'modificado' | 'anulado'
+export type AccionViajeHistorial = 'creado' | 'modificado' | 'cerrado'
 
 export interface Database {
   public: {
@@ -187,11 +183,41 @@ export interface Database {
           }
         ]
       }
+      tipos_servicio: {
+        Row: {
+          id: string
+          empresa_id: string
+          codigo: string
+          nombre: string
+          flujo: FlujoServicio
+          activo: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          codigo: string
+          nombre: string
+          flujo: FlujoServicio
+          activo?: boolean
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['tipos_servicio']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'tipos_servicio_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          }
+        ]
+      }
       servicios: {
         Row: {
           id: string
           empresa_id: string
           cliente_id: string
+          tipo_servicio_id: string
           nombre: string
           descripcion: string | null
           origen: string | null
@@ -205,6 +231,7 @@ export interface Database {
           id?: string
           empresa_id: string
           cliente_id: string
+          tipo_servicio_id?: string | null
           nombre: string
           descripcion?: string | null
           origen?: string | null
@@ -226,6 +253,12 @@ export interface Database {
             foreignKeyName: 'servicios_cliente_id_fkey'
             columns: ['cliente_id']
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'servicios_tipo_servicio_id_fkey'
+            columns: ['tipo_servicio_id']
+            referencedRelation: 'tipos_servicio'
             referencedColumns: ['id']
           }
         ]
@@ -286,6 +319,8 @@ export interface Database {
           chofer_id: string
           camion_id: string
           servicio_id: string | null
+          tipo_servicio_id: string
+          cliente_id: string | null
           fecha: string
           km_inicio: number
           km_termino: number | null
@@ -294,6 +329,9 @@ export interface Database {
           foto_km_inicio: string | null
           foto_km_termino: string | null
           estado: EstadoViaje
+          iniciado_at: string
+          cerrado_at: string | null
+          cerrado_by: string | null
           created_at: string
         }
         Insert: {
@@ -302,6 +340,8 @@ export interface Database {
           chofer_id: string
           camion_id: string
           servicio_id?: string | null
+          tipo_servicio_id?: string | null
+          cliente_id?: string | null
           fecha: string
           km_inicio: number
           km_termino?: number | null
@@ -310,6 +350,9 @@ export interface Database {
           foto_km_inicio?: string | null
           foto_km_termino?: string | null
           estado?: EstadoViaje
+          iniciado_at?: string
+          cerrado_at?: string | null
+          cerrado_by?: string | null
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['viajes']['Insert']>
@@ -336,6 +379,243 @@ export interface Database {
             foreignKeyName: 'viajes_servicio_id_fkey'
             columns: ['servicio_id']
             referencedRelation: 'servicios'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viajes_tipo_servicio_id_fkey'
+            columns: ['tipo_servicio_id']
+            referencedRelation: 'tipos_servicio'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viajes_cliente_id_fkey'
+            columns: ['cliente_id']
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viajes_cerrado_by_fkey'
+            columns: ['cerrado_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      viaje_puntos: {
+        Row: {
+          id: string
+          empresa_id: string
+          viaje_id: string
+          cliente_id: string | null
+          orden: number
+          tipo: TipoPunto
+          nombre_punto: string
+          nombre_punto_normalizado: string
+          km_llegada: number
+          foto_guia_url: string
+          captured_at: string
+          created_at: string
+          created_by: string | null
+          updated_at: string | null
+          updated_by: string | null
+          anulado: boolean
+          anulado_at: string | null
+          anulado_by: string | null
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          viaje_id: string
+          cliente_id?: string | null
+          orden: number
+          tipo: TipoPunto
+          nombre_punto: string
+          nombre_punto_normalizado: string
+          km_llegada: number
+          foto_guia_url: string
+          captured_at?: string
+          created_at?: string
+          created_by?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          anulado?: boolean
+          anulado_at?: string | null
+          anulado_by?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['viaje_puntos']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'viaje_puntos_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_puntos_viaje_id_fkey'
+            columns: ['viaje_id']
+            referencedRelation: 'viajes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_puntos_cliente_id_fkey'
+            columns: ['cliente_id']
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_puntos_created_by_fkey'
+            columns: ['created_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_puntos_updated_by_fkey'
+            columns: ['updated_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_puntos_anulado_by_fkey'
+            columns: ['anulado_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      viaje_punto_historial: {
+        Row: {
+          id: string
+          punto_id: string
+          viaje_id: string
+          empresa_id: string
+          accion: AccionPuntoHistorial
+          orden_anterior: number | null
+          orden_nuevo: number | null
+          tipo_anterior: TipoPunto | null
+          tipo_nuevo: TipoPunto | null
+          nombre_punto_anterior: string | null
+          nombre_punto_nuevo: string | null
+          nombre_punto_normalizado_anterior: string | null
+          nombre_punto_normalizado_nuevo: string | null
+          km_llegada_anterior: number | null
+          km_llegada_nuevo: number | null
+          foto_guia_url_anterior: string | null
+          foto_guia_url_nuevo: string | null
+          motivo: string
+          changed_by: string | null
+          changed_at: string
+        }
+        Insert: {
+          id?: string
+          punto_id: string
+          viaje_id: string
+          empresa_id: string
+          accion: AccionPuntoHistorial
+          orden_anterior?: number | null
+          orden_nuevo?: number | null
+          tipo_anterior?: TipoPunto | null
+          tipo_nuevo?: TipoPunto | null
+          nombre_punto_anterior?: string | null
+          nombre_punto_nuevo?: string | null
+          nombre_punto_normalizado_anterior?: string | null
+          nombre_punto_normalizado_nuevo?: string | null
+          km_llegada_anterior?: number | null
+          km_llegada_nuevo?: number | null
+          foto_guia_url_anterior?: string | null
+          foto_guia_url_nuevo?: string | null
+          motivo: string
+          changed_by?: string | null
+          changed_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['viaje_punto_historial']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'viaje_punto_historial_punto_id_fkey'
+            columns: ['punto_id']
+            referencedRelation: 'viaje_puntos'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_punto_historial_viaje_id_fkey'
+            columns: ['viaje_id']
+            referencedRelation: 'viajes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_punto_historial_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_punto_historial_changed_by_fkey'
+            columns: ['changed_by']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      viaje_historial: {
+        Row: {
+          id: string
+          viaje_id: string
+          empresa_id: string
+          accion: AccionViajeHistorial
+          km_inicio_anterior: number | null
+          km_inicio_nuevo: number | null
+          km_termino_anterior: number | null
+          km_termino_nuevo: number | null
+          foto_km_inicio_anterior: string | null
+          foto_km_inicio_nuevo: string | null
+          foto_km_termino_anterior: string | null
+          foto_km_termino_nuevo: string | null
+          observaciones_anterior: string | null
+          observaciones_nuevo: string | null
+          estado_anterior: string | null
+          estado_nuevo: string | null
+          motivo: string | null
+          changed_by: string | null
+          changed_at: string
+        }
+        Insert: {
+          id?: string
+          viaje_id: string
+          empresa_id: string
+          accion: AccionViajeHistorial
+          km_inicio_anterior?: number | null
+          km_inicio_nuevo?: number | null
+          km_termino_anterior?: number | null
+          km_termino_nuevo?: number | null
+          foto_km_inicio_anterior?: string | null
+          foto_km_inicio_nuevo?: string | null
+          foto_km_termino_anterior?: string | null
+          foto_km_termino_nuevo?: string | null
+          observaciones_anterior?: string | null
+          observaciones_nuevo?: string | null
+          estado_anterior?: string | null
+          estado_nuevo?: string | null
+          motivo?: string | null
+          changed_by?: string | null
+          changed_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['viaje_historial']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'viaje_historial_viaje_id_fkey'
+            columns: ['viaje_id']
+            referencedRelation: 'viajes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_historial_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'viaje_historial_changed_by_fkey'
+            columns: ['changed_by']
+            referencedRelation: 'usuarios'
             referencedColumns: ['id']
           }
         ]
@@ -493,9 +773,9 @@ export interface Database {
         ]
       }
     }
-    Views: {}
-    Functions: {}
-    Enums: {}
+    Views: Record<string, never>
+    Functions: Record<string, never>
+    Enums: Record<string, never>
   }
 }
 
@@ -504,9 +784,13 @@ export type Usuario = Database['public']['Tables']['usuarios']['Row']
 export type Chofer = Database['public']['Tables']['choferes']['Row']
 export type Camion = Database['public']['Tables']['camiones']['Row']
 export type Cliente = Database['public']['Tables']['clientes']['Row']
+export type TipoServicio = Database['public']['Tables']['tipos_servicio']['Row']
 export type Servicio = Database['public']['Tables']['servicios']['Row']
 export type Asignacion = Database['public']['Tables']['asignaciones']['Row']
 export type Viaje = Database['public']['Tables']['viajes']['Row']
+export type ViajePunto = Database['public']['Tables']['viaje_puntos']['Row']
+export type ViajePuntoHistorial = Database['public']['Tables']['viaje_punto_historial']['Row']
+export type ViajeHistorial = Database['public']['Tables']['viaje_historial']['Row']
 export type Gasto = Database['public']['Tables']['gastos']['Row']
 export type ValorKm = Database['public']['Tables']['valor_km']['Row']
 export type ValorKmHistorial = Database['public']['Tables']['valor_km_historial']['Row']

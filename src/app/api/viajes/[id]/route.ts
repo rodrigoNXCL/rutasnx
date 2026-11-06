@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { requireChofer } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getViajeAcceso } from '@/lib/viaje-access'
 import type { Database } from '@/types/database'
 
 export async function PUT(
@@ -8,51 +9,94 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireChofer()
+    const session = await requireRole(['chofer', 'admin', 'superadmin'])
     const supabase = createAdminClient()
     const { id } = await params
 
-    const { data: chofer } = await supabase
-      .from('choferes')
-      .select('id, empresa_id')
-      .eq('usuario_id', session.id)
-      .single()
+    const acceso = await getViajeAcceso(session, id)
 
-    if (!chofer) {
-      return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
+    if ('error' in acceso) {
+      return NextResponse.json({ error: acceso.error }, { status: acceso.status })
     }
 
+    const viajeActual = acceso.viaje
     const body = await request.json()
-    const { km_inicio, km_termino, foto_km_inicio, foto_km_termino, observaciones } = body
+    const {
+      km_inicio,
+      km_termino,
+      foto_km_inicio,
+      foto_km_termino,
+      observaciones,
+      motivo,
+    } = body
 
-    const { data: viajeActual } = await supabase
-      .from('viajes')
-      .select('km_inicio, estado')
-      .eq('id', id)
-      .eq('chofer_id', chofer.id)
-      .single()
+    const motivoLimpio = String(motivo || '').trim()
 
-    if (!viajeActual) {
-      return NextResponse.json({ error: 'Viaje no encontrado' }, { status: 404 })
+    if (acceso.flujo === 'puntos' && !motivoLimpio) {
+      return NextResponse.json(
+        { error: 'El motivo de la corrección es obligatorio' },
+        { status: 400 }
+      )
     }
 
     const updateData: Database['public']['Tables']['viajes']['Update'] = {}
+    const nuevoKmInicio = km_inicio === undefined ? viajeActual.km_inicio : Number(km_inicio)
+    const nuevoKmTermino = km_termino === undefined
+      ? viajeActual.km_termino
+      : Number(km_termino)
+
+    if (!Number.isInteger(nuevoKmInicio) || nuevoKmInicio < 0) {
+      return NextResponse.json({ error: 'Odómetro inicial inválido' }, { status: 400 })
+    }
+
+    if (nuevoKmTermino !== null && (!Number.isInteger(nuevoKmTermino) || nuevoKmTermino < 0)) {
+      return NextResponse.json({ error: 'Odómetro de término inválido' }, { status: 400 })
+    }
+
+    if (nuevoKmTermino !== null && nuevoKmTermino < nuevoKmInicio) {
+      return NextResponse.json({ error: 'Km término debe ser mayor o igual a km inicio' }, { status: 400 })
+    }
+
+    if (acceso.flujo === 'puntos') {
+      const { data: primerPunto } = await supabase
+        .from('viaje_puntos')
+        .select('km_llegada')
+        .eq('viaje_id', id)
+        .eq('anulado', false)
+        .order('orden', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      const { data: ultimoPunto } = await supabase
+        .from('viaje_puntos')
+        .select('km_llegada')
+        .eq('viaje_id', id)
+        .eq('anulado', false)
+        .order('orden', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (primerPunto && nuevoKmInicio > primerPunto.km_llegada) {
+        return NextResponse.json(
+          { error: `El odómetro inicial no puede superar el primer punto (${primerPunto.km_llegada} km)` },
+          { status: 400 }
+        )
+      }
+
+      if (ultimoPunto && nuevoKmTermino !== null && nuevoKmTermino < ultimoPunto.km_llegada) {
+        return NextResponse.json(
+          { error: `El odómetro de término no puede ser menor al último punto (${ultimoPunto.km_llegada} km)` },
+          { status: 400 }
+        )
+      }
+    }
 
     if (km_inicio !== undefined) {
-      if (km_termino !== undefined && km_termino < km_inicio) {
-        return NextResponse.json({ error: 'Km término debe ser mayor o igual a km inicio' }, { status: 400 })
-      }
-      updateData.km_inicio = km_inicio
+      updateData.km_inicio = nuevoKmInicio
     }
 
     if (km_termino !== undefined) {
-      if (km_inicio !== undefined && km_termino < km_inicio) {
-        return NextResponse.json({ error: 'Km término debe ser mayor o igual a km inicio' }, { status: 400 })
-      }
-      if (viajeActual.km_inicio && km_termino < viajeActual.km_inicio) {
-        return NextResponse.json({ error: 'Km término debe ser mayor o igual a km inicio' }, { status: 400 })
-      }
-      updateData.km_termino = km_termino
+      updateData.km_termino = nuevoKmTermino
     }
 
     if (foto_km_inicio !== undefined) {
@@ -67,16 +111,49 @@ export async function PUT(
       updateData.observaciones = observaciones
     }
 
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(viajeActual)
+    }
+
     const { data: viaje, error: errorViaje } = await supabase
       .from('viajes')
       .update(updateData)
       .eq('id', id)
-      .eq('chofer_id', chofer.id)
       .select()
       .single()
 
     if (errorViaje) {
       return NextResponse.json({ error: errorViaje.message }, { status: 500 })
+    }
+
+    const { error: errorHistorial } = await supabase
+      .from('viaje_historial')
+      .insert({
+        viaje_id: id,
+        empresa_id: viajeActual.empresa_id,
+        accion: 'modificado',
+        km_inicio_anterior: viajeActual.km_inicio,
+        km_inicio_nuevo: viaje.km_inicio,
+        km_termino_anterior: viajeActual.km_termino,
+        km_termino_nuevo: viaje.km_termino,
+        foto_km_inicio_anterior: viajeActual.foto_km_inicio,
+        foto_km_inicio_nuevo: viaje.foto_km_inicio,
+        foto_km_termino_anterior: viajeActual.foto_km_termino,
+        foto_km_termino_nuevo: viaje.foto_km_termino,
+        observaciones_anterior: viajeActual.observaciones,
+        observaciones_nuevo: viaje.observaciones,
+        estado_anterior: viajeActual.estado,
+        estado_nuevo: viaje.estado,
+        motivo: motivoLimpio || null,
+        changed_by: session.id,
+      })
+
+    if (errorHistorial) {
+      console.error('Error historial viaje:', errorHistorial)
+      return NextResponse.json(
+        { error: 'Ruta actualizada, pero no se pudo registrar el historial' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json(viaje)

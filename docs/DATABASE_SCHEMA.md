@@ -4,7 +4,7 @@
 
 **Fuente de verdad**: `src/types/database.ts`
 
-Migraciones SQL en `supabase/migrations/001_schema_v2.sql`.
+Migraciones SQL en `supabase/migrations/`.
 
 ### Tablas
 
@@ -68,12 +68,25 @@ Migraciones SQL en `supabase/migrations/001_schema_v2.sql`.
 | activo | boolean | default true |
 | created_at | timestamptz | default now() |
 
+#### tipos_servicio
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| codigo | text | NOT NULL |
+| nombre | text | NOT NULL |
+| flujo | text | NOT NULL, CHECK IN ('simple','puntos') |
+| activo | boolean | default true |
+| created_at | timestamptz | default now() |
+| | | UNIQUE(empresa_id, codigo) |
+
 #### servicios
 | Columna | Tipo | Constraints |
 |---------|------|-------------|
 | id | uuid | PK |
 | empresa_id | uuid | FK → empresas.id, NOT NULL |
 | cliente_id | uuid | FK → clientes.id, NOT NULL |
+| tipo_servicio_id | uuid | FK → tipos_servicio.id, NOT NULL |
 | nombre | text | NOT NULL |
 | descripcion | text | |
 | origen | text | |
@@ -104,13 +117,79 @@ Migraciones SQL en `supabase/migrations/001_schema_v2.sql`.
 | chofer_id | uuid | FK → choferes.id, NOT NULL |
 | camion_id | uuid | FK → camiones.id, NOT NULL |
 | servicio_id | uuid | FK → servicios.id, SET NULL |
-| fecha | date | NOT NULL |
+| tipo_servicio_id | uuid | FK → tipos_servicio.id, NOT NULL (snapshot) |
+| cliente_id | uuid | FK → clientes.id, SET NULL (snapshot) |
+| fecha | date | NOT NULL (fecha de inicio de la ruta) |
 | km_inicio | int | NOT NULL |
-| km_termino | int | NOT NULL, CHECK >= km_inicio |
+| km_termino | int | NULL, CHECK >= km_inicio |
 | ruta | text | |
 | observaciones | text | |
+| foto_km_inicio | text | |
+| foto_km_termino | text | |
+| estado | text | CHECK IN ('en_curso','terminado') |
+| iniciado_at | timestamptz | NOT NULL, default now() |
+| cerrado_at | timestamptz | |
+| cerrado_by | uuid | FK → usuarios.id, SET NULL |
 | created_at | timestamptz | default now() |
-| | | UNIQUE(camion_id, fecha) |
+| | | Índice único parcial: una sola ruta `en_curso` por `camion_id` y por `chofer_id` |
+
+#### viaje_puntos
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| viaje_id | uuid | FK → viajes.id, NOT NULL |
+| cliente_id | uuid | FK → clientes.id, SET NULL (snapshot) |
+| orden | int | NOT NULL |
+| tipo | text | NOT NULL, CHECK IN ('retiro','entrega') |
+| nombre_punto | text | NOT NULL |
+| nombre_punto_normalizado | text | NOT NULL |
+| km_llegada | int | NOT NULL (odómetro absoluto) |
+| foto_guia_url | text | NOT NULL |
+| captured_at | timestamptz | NOT NULL, default now() |
+| created_at | timestamptz | default now() |
+| created_by | uuid | FK → usuarios.id, SET NULL |
+| updated_at | timestamptz | |
+| updated_by | uuid | FK → usuarios.id, SET NULL |
+| anulado | boolean | default false |
+| anulado_at | timestamptz | |
+| anulado_by | uuid | FK → usuarios.id, SET NULL |
+| | | UNIQUE(viaje_id, orden) |
+
+#### viaje_punto_historial
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| punto_id | uuid | FK → viaje_puntos.id, NOT NULL |
+| viaje_id | uuid | FK → viajes.id, NOT NULL |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| accion | text | NOT NULL, CHECK IN ('modificado','anulado') |
+| orden_anterior / orden_nuevo | int | |
+| tipo_anterior / tipo_nuevo | text | |
+| nombre_punto_anterior / nombre_punto_nuevo | text | |
+| nombre_punto_normalizado_anterior / nombre_punto_normalizado_nuevo | text | |
+| km_llegada_anterior / km_llegada_nuevo | int | |
+| foto_guia_url_anterior / foto_guia_url_nuevo | text | |
+| motivo | text | NOT NULL |
+| changed_by | uuid | FK → usuarios.id, SET NULL |
+| changed_at | timestamptz | default now() |
+
+#### viaje_historial
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| viaje_id | uuid | FK → viajes.id, NOT NULL |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| accion | text | NOT NULL, CHECK IN ('creado','modificado','cerrado') |
+| km_inicio_anterior / km_inicio_nuevo | int | |
+| km_termino_anterior / km_termino_nuevo | int | |
+| foto_km_inicio_anterior / foto_km_inicio_nuevo | text | |
+| foto_km_termino_anterior / foto_km_termino_nuevo | text | |
+| observaciones_anterior / observaciones_nuevo | text | |
+| estado_anterior / estado_nuevo | text | |
+| motivo | text | |
+| changed_by | uuid | FK → usuarios.id, SET NULL |
+| changed_at | timestamptz | default now() |
 
 #### gastos
 | Columna | Tipo | Constraints |
@@ -167,3 +246,5 @@ Implementadas en el SQL de migración para todos los roles.
 ## Storage
 
 - Bucket: 'gastos' (privado, 5MB, jpg/png/webp)
+- Bucket: 'km-fotos' (privado, 5MB, jpg/png/webp)
+- Bucket: 'guias' (público, 5MB, jpg/png/webp)

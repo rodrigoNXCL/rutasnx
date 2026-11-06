@@ -24,6 +24,15 @@
 - [x] Valorizador de kilometraje (admin, con historial de cambios)
 - [x] Admin: consulta de usuarios activos
 - [x] Multi-usuario por cliente (varios logins por cliente)
+- [x] Tipos de servicio por empresa (`reparto`/`fruta`) y soporte multi-ruta por camión/día
+- [x] Catálogo admin de tipos de servicio (`/admin/tipos-servicio`)
+- [x] BD Fase 2: puntos de viaje, historiales de auditoría y bucket `guias`
+- [x] APIs base de puntos: alta, edición con motivo, anulación con motivo y autocompletado
+- [x] UI chofer para flujo `puntos` (registro, corrección y anulación con motivo)
+- [x] Cierre de ruta con odómetro final y evidencia opcional
+- [ ] UI admin para editar rutas/puntos
+- [ ] Reportes con puntos y guías
+- [ ] Offline/PWA e idempotencia de sincronización
 
 ## Estructura de Rutas Implementada
 
@@ -36,6 +45,7 @@
 - `/admin/choferes` - CRUD choferes
 - `/admin/clientes` - CRUD clientes
 - `/admin/servicios` - CRUD servicios
+- `/admin/tipos-servicio` - Catálogo de tipos de servicio por empresa
 - `/admin/asignaciones` - Asignar chofer+camión a servicio
 - `/admin/reportes` - Reportes con tabs: Informes (PDF/CSV rutas terminadas), Resumen Diario (PDF/CSV), Valorizador KM (PDF/CSV)
 - `/admin/valorizador` - Gestión del valorizador de kilometraje (CRUD + historial de cambios)
@@ -73,6 +83,19 @@ Tabla `viajes` actualizada:
 
 Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el resto de tipos queda interno.
 
+### Flujo por puntos (tipo de servicio `fruta`)
+
+1. **Iniciar ruta** → odómetro inicial + foto (opcional según tipo).
+2. **Registrar puntos** → retiro/entrega con nombre autocompletado, odómetro de llegada y **foto de guía obligatoria** (bucket `guias`).
+3. **Cerrar ruta** → acción separada del último punto: odómetro de término obligatorio (puede superar al último punto), foto de odómetro opcional.
+4. **Correcciones** → editar o anular puntos exige `motivo`; queda registro en `viaje_punto_historial`. Editar la ruta deja registro en `viaje_historial`.
+
+Reglas:
+- `viajes.fecha` es la fecha de inicio; si la ruta cruza medianoche, todos los puntos mantienen esa fecha.
+- Solo puede existir una ruta `en_curso` por camión y por chofer.
+- Se permiten varias rutas secuenciales por camión/día.
+- Puntos anulados no se muestran al chofer/cliente y se excluyen de reportes.
+
 ## APIs Implementadas
 
 - `POST /api/viajes/iniciar` - Inicia el día (km inicio + foto km)
@@ -82,7 +105,14 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 - `POST /api/gastos` - Registra gastos de un viaje
 - `PATCH /api/gastos/[id]` - Edita un gasto (tipo, monto, descripción, foto)
 - `DELETE /api/gastos/[id]` - Elimina un gasto
-- `POST /api/upload` - Upload de fotos (bucket: `gastos` o `km-fotos`)
+- `GET /api/viajes/[id]/puntos` - Lista puntos de una ruta (`incluir_anulados=true` para admin)
+- `POST /api/viajes/[id]/puntos` - Crea un punto (foto de guía obligatoria, odómetro validado)
+- `PUT /api/viajes/[id]/puntos/[puntoId]` - Edita un punto (motivo obligatorio, auditoría)
+- `DELETE /api/viajes/[id]/puntos/[puntoId]` - Anula un punto (motivo obligatorio, auditoría)
+- `GET /api/puntos/sugerencias` - Autocompletado de puntos por cliente (normalizado)
+- `GET /api/tipos-servicio` / `POST /api/tipos-servicio` - Catálogo de tipos de servicio
+- `PUT /api/tipos-servicio/[id]` / `DELETE /api/tipos-servicio/[id]` - Edición/desactivación lógica
+- `POST /api/upload` - Upload de fotos (buckets: `gastos`, `km-fotos`, `guias`)
 - `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `cliente_usuarios`, gastos filtrados solo a `peaje`)
 - `GET /api/cliente/informes` - Informe de rutas terminadas del cliente en un periodo (solo gastos `peaje`)
 - `GET /api/admin/informes` - Informe de rutas terminadas de la empresa en un periodo (todos los gastos + URLs de imágenes km/gastos)
@@ -103,7 +133,9 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 
 ## Último Cambio
 
-El **Resumen Diario** quedó integrado dentro de **Reportes** (tabs: Informes / Resumen Diario / Valorizador KM). Nuevo **Valorizador de Kilometraje** (`/admin/valorizador`): el admin asigna un valor por km para un rango de fechas (con validación de solapamiento), queda guardado y se lista en un informe PDF/CSV dentro de Reportes; cada creación/modificación/eliminación queda registrada en `valor_km_historial` (auditoría). El tab **Valorizador KM** muestra el resumen diario **valorizado**: km del día × valor por km aplicable a la fecha, con totalización de la columna valor total. Nuevo soporte **multi-usuario por cliente** (tabla `cliente_usuarios`): se pueden asociar varios logins a un cliente y todos acceden a la info asociada; la gestión se hace desde Clientes → "N usuarios". Los APIs de cliente ahora resuelven el cliente vía `cliente_usuarios`. Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (tab Informes). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Antes del detalle de gastos y evidencias, el PDF muestra un bloque de **totales** (rutas, km recorridos y gastos). Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
+**Fase 1-2 de tipos de servicio y flujo por puntos.** Catálogo `tipos_servicio` por empresa (`reparto` simple / `fruta` puntos), servicios y viajes con snapshot de tipo y cliente, y soporte de múltiples rutas por camión/día (una sola abierta por camión/chofer). Se agregaron puntos de viaje con foto de guía obligatoria, odómetro absoluto, anulación lógica y auditoría (`viaje_punto_historial`, `viaje_historial`), bucket público `guias`, y APIs de puntos/autocompletado. La UI del chofer ya distingue el flujo `puntos`: registra puntos con autocompletado, foto de guía y odómetro; permite corregir/anular con motivo; y el cierre de ruta es una acción separada con odómetro final y foto opcional. `GET /api/viajes/hoy` ahora busca la ruta abierta sin filtrar por fecha (soporte cruce de medianoche) y `GET /api/viajes/fecha` devuelve `viajes[]` manteniendo `viaje` por compatibilidad. Pendiente: UI admin para editar rutas/puntos, reportes con guías, offline/PWA y portal cliente.
+
+Anterior: El **Resumen Diario** quedó integrado dentro de **Reportes** (tabs: Informes / Resumen Diario / Valorizador KM). Nuevo **Valorizador de Kilometraje** (`/admin/valorizador`): el admin asigna un valor por km para un rango de fechas (con validación de solapamiento), queda guardado y se lista en un informe PDF/CSV dentro de Reportes; cada creación/modificación/eliminación queda registrada en `valor_km_historial` (auditoría). El tab **Valorizador KM** muestra el resumen diario **valorizado**: km del día × valor por km aplicable a la fecha, con totalización de la columna valor total. Nuevo soporte **multi-usuario por cliente** (tabla `cliente_usuarios`): se pueden asociar varios logins a un cliente y todos acceden a la info asociada; la gestión se hace desde Clientes → "N usuarios". Los APIs de cliente ahora resuelven el cliente vía `cliente_usuarios`. Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (tab Informes). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Antes del detalle de gastos y evidencias, el PDF muestra un bloque de **totales** (rutas, km recorridos y gastos). Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
 
 Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede editar rutas terminadas (km, observaciones, fotos y CRUD de gastos).
 

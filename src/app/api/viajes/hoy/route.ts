@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getTodayChile } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -18,22 +17,24 @@ export async function GET() {
       return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
     }
 
-    const today = getTodayChile()
-
     const { data: viaje, error } = await supabase
       .from('viajes')
       .select(`
         *,
         camiones (id, patente, marca),
         servicios (id, nombre, origen, destino, clientes (nombre)),
+        tipos_servicio (id, codigo, nombre, flujo),
+        viaje_puntos (*),
         gastos (*)
       `)
       .eq('chofer_id', chofer.id)
-      .eq('fecha', today)
       .eq('estado', 'en_curso')
-      .single()
+      .order('iniciado_at', { ascending: false })
+      .order('orden', { referencedTable: 'viaje_puntos', ascending: true })
+      .limit(1)
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -41,7 +42,9 @@ export async function GET() {
       return NextResponse.json({ viaje: null })
     }
 
-    return NextResponse.json({ viaje })
+    const puntos = (viaje.viaje_puntos || []).filter(p => !p.anulado)
+
+    return NextResponse.json({ viaje: { ...viaje, viaje_puntos: puntos } })
   } catch (error) {
     console.error('Error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

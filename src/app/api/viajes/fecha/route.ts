@@ -23,23 +23,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
     }
 
-    const { data: viaje, error } = await supabase
+    const { data: viajes, error } = await supabase
       .from('viajes')
       .select(`
         *,
         camiones (id, patente, marca),
         servicios (id, nombre, origen, destino, clientes (nombre)),
+        tipos_servicio (id, codigo, nombre, flujo),
+        viaje_puntos (*),
         gastos (*)
       `)
       .eq('chofer_id', chofer.id)
       .eq('fecha', fecha)
-      .single()
+      .order('iniciado_at', { ascending: true })
+      .order('orden', { referencedTable: 'viaje_puntos', ascending: true })
 
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ viaje: viaje || null })
+    const normalizados = (viajes || []).map(viaje => ({
+      ...viaje,
+      viaje_puntos: (viaje.viaje_puntos || []).filter(p => !p.anulado),
+    }))
+
+    return NextResponse.json({
+      viaje: normalizados[0] || null,
+      viajes: normalizados,
+    })
   } catch (error) {
     console.error('Error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

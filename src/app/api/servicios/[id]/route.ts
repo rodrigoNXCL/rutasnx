@@ -7,16 +7,30 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin()
+    const session = await requireAdmin()
     const supabase = createAdminClient()
     const { id } = await params
 
-    const { cliente_id, nombre, descripcion, origen, destino, precio_km, precio_base, activo } = await request.json()
+    const { cliente_id, tipo_servicio_id, nombre, descripcion, origen, destino, precio_km, precio_base, activo } = await request.json()
+
+    if (tipo_servicio_id) {
+      const { data: tipo } = await supabase
+        .from('tipos_servicio')
+        .select('id, activo')
+        .eq('id', tipo_servicio_id)
+        .eq('empresa_id', session.empresa_id)
+        .single()
+
+      if (!tipo) {
+        return NextResponse.json({ error: 'Tipo de servicio inválido' }, { status: 400 })
+      }
+    }
 
     const { data, error } = await supabase
       .from('servicios')
-      .update({ cliente_id, nombre, descripcion, origen, destino, precio_km, precio_base, activo })
+      .update({ cliente_id, tipo_servicio_id: tipo_servicio_id || null, nombre, descripcion, origen, destino, precio_km, precio_base, activo })
       .eq('id', id)
+      .eq('empresa_id', session.empresa_id)
       .select()
       .single()
 
@@ -36,7 +50,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin()
+    const session = await requireAdmin()
     const supabase = createAdminClient()
     const { id } = await params
 
@@ -44,6 +58,7 @@ export async function DELETE(
       .from('servicios')
       .delete()
       .eq('id', id)
+      .eq('empresa_id', session.empresa_id)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

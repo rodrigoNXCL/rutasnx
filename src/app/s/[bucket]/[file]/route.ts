@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const ALLOWED_BUCKETS = new Set(['gastos', 'km-fotos'])
+const ALLOWED_BUCKETS = new Set(['gastos', 'km-fotos', 'guias'])
 const SAFE_FILE = /^[A-Za-z0-9._-]+$/
 
 export async function GET(

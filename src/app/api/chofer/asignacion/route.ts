@@ -24,7 +24,18 @@ export async function GET() {
         observaciones,
         activo,
         camiones (id, patente, marca, modelo),
-        servicios (id, nombre, origen, destino, precio_km, precio_base, clientes (nombre))
+        servicios (
+          id,
+          nombre,
+          origen,
+          destino,
+          precio_km,
+          precio_base,
+          cliente_id,
+          tipo_servicio_id,
+          clientes (id, nombre),
+          tipos_servicio (id, codigo, nombre, flujo)
+        )
       `)
       .eq('chofer_id', chofer.id)
       .eq('activo', true)

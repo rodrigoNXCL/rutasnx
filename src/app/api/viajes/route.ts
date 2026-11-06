@@ -23,16 +23,24 @@ export async function GET() {
         *,
         camiones (patente, marca),
         servicios (nombre),
+        tipos_servicio (id, codigo, nombre, flujo),
+        viaje_puntos (*),
         gastos (*)
       `)
       .eq('chofer_id', chofer.id)
       .order('fecha', { ascending: false })
+      .order('iniciado_at', { ascending: false })
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(viajes || [])
+    const normalizados = (viajes || []).map(viaje => ({
+      ...viaje,
+      viaje_puntos: (viaje.viaje_puntos || []).filter(p => !p.anulado),
+    }))
+
+    return NextResponse.json(normalizados)
   } catch (error) {
     console.error('Error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

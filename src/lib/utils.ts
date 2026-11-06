@@ -56,3 +56,12 @@ export function formatDateChile(dateStr: string): string {
 export function getTodayChile(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
 }
+
+export function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+}

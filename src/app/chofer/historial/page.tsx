@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import PuntosRuta from '../registro/PuntosRuta'
+
+interface TipoServicio {
+  id: string
+  codigo: string
+  nombre: string
+  flujo: 'simple' | 'puntos'
+}
 
 interface Gasto {
   id: string
@@ -21,8 +29,11 @@ interface Viaje {
   estado: string
   observaciones: string | null
   created_at: string
+  cliente_id: string | null
+  tipo_servicio_id: string
   camiones: { patente: string; marca: string | null } | null
   servicios: { nombre: string; origen: string | null; destino: string | null } | null
+  tipos_servicio: TipoServicio | null
   gastos: Gasto[]
 }
 
@@ -54,6 +65,7 @@ export default function ChoferHistorial() {
   const [editKmInicio, setEditKmInicio] = useState('')
   const [editKmTermino, setEditKmTermino] = useState('')
   const [editObs, setEditObs] = useState('')
+  const [editMotivo, setEditMotivo] = useState('')
   const [editFotoInicio, setEditFotoInicio] = useState<File | null>(null)
   const [editFotoInicioPrev, setEditFotoInicioPrev] = useState<string | null>(null)
   const [editFotoTermino, setEditFotoTermino] = useState<File | null>(null)
@@ -110,6 +122,7 @@ export default function ChoferHistorial() {
     setEditKmInicio(String(viaje.km_inicio))
     setEditKmTermino(viaje.km_termino != null ? String(viaje.km_termino) : '')
     setEditObs(viaje.observaciones || '')
+    setEditMotivo('')
     setEditFotoInicio(null)
     setEditFotoInicioPrev(null)
     setEditFotoTermino(null)
@@ -188,10 +201,16 @@ export default function ChoferHistorial() {
         return
       }
 
+      if (editando.tipos_servicio?.flujo === 'puntos' && !editMotivo.trim()) {
+        setEditError('El motivo de la corrección es obligatorio')
+        return
+      }
+
       const viajeBody: Record<string, unknown> = {
         km_inicio: kmInicio,
         km_termino: kmTermino,
         observaciones: editObs || null,
+        motivo: editMotivo.trim() || null,
       }
       if (fotoInicioUrl) viajeBody.foto_km_inicio = fotoInicioUrl
       if (fotoTerminoUrl) viajeBody.foto_km_termino = fotoTerminoUrl
@@ -336,6 +355,17 @@ export default function ChoferHistorial() {
                         Editar ruta
                       </button>
                     </div>
+
+                    {viaje.tipos_servicio?.flujo === 'puntos' && (
+                      <div className="mb-6">
+                        <PuntosRuta
+                          viajeId={viaje.id}
+                          clienteId={viaje.cliente_id}
+                          kmInicio={viaje.km_inicio}
+                          soloEdicion
+                        />
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-3">
@@ -489,6 +519,20 @@ export default function ChoferHistorial() {
                 style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
               />
             </div>
+
+            {editando.tipos_servicio?.flujo === 'puntos' && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Motivo de la corrección *</label>
+                <textarea
+                  value={editMotivo}
+                  onChange={(e) => setEditMotivo(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                  style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                  placeholder="Explica qué se corrigió y por qué"
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>

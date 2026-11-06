@@ -14,10 +14,11 @@
 - No依赖 Supabase Auth.
 
 ### Modelo de Datos
-- 9 tablas: empresas, usuarios, choferes, camiones, clientes, servicios, viajes, gastos, asignaciones.
-- Relaciones: empresa → (usuarios, choferes, camiones, clientes, servicios, asignaciones)
-- servicios → viajes → gastos (cadena de servicios)
+- Tablas principales: empresas, usuarios, choferes, camiones, clientes, servicios, tipos_servicio, viajes, viaje_puntos, gastos, asignaciones.
+- Relaciones: empresa → (usuarios, choferes, camiones, clientes, servicios, tipos_servicio, asignaciones)
+- servicios → viajes → (gastos, viaje_puntos)
 - asignaciones: chofer+camión asignados a un servicio (relación muchos a muchos)
+- Auditoría: viaje_historial y viaje_punto_historial.
 
 ### Asignaciones (Modelo de Negocio)
 - Admin asigna permanentemente un chofer + camión a un servicio.
@@ -34,7 +35,8 @@
 ### Reglas de Negocio
 - Fecha chilena forzada (America/Santiago).
 - km_termino >= km_inicio (CHECK en BD).
-- Viaje único por día/camión.
+- Se permiten múltiples rutas por camión/día; solo una `en_curso` por camión y por chofer (índices únicos parciales).
+- `viajes.fecha` es la fecha de inicio; si la ruta cruza medianoche, puntos y cierre mantienen esa fecha.
 - Montos en CLP (enteros, sin decimales).
 - Foto obligatoria por gasto.
 - Validación RUT chileno.
@@ -51,6 +53,17 @@
 ### Edición de Rutas (Chofer)
 - El chofer puede editar rutas terminadas desde el historial: km inicio/término, observaciones, fotos de km y **CRUD de gastos** (`POST/PATCH/DELETE /api/gastos[/id]`).
 - Ownership verificado por sesión: los endpoints de chofer resuelven `choferes.usuario_id` y validan que el recurso pertenezca al viaje del chofer. La edición guarda evidencia fotográfica de comprobantes (bucket `gastos`/`km-fotos`).
+
+### Tipos de Servicio y Flujo por Puntos
+- Catálogo `tipos_servicio` por empresa con `flujo` (`simple` | `puntos`). Seed: `reparto` (simple) y `fruta` (puntos). Gestión en `/admin/tipos-servicio`.
+- `reparto` no se puede eliminar; los tipos en uso se desactivan, no se borran.
+- El flujo `puntos` registra N puntos de tipo `retiro`/`entrega`; cada punto exige nombre, odómetro de llegada absoluto y **foto de guía obligatoria** (bucket `guias`).
+- Autocompletado de puntos por empresa + cliente, normalizado (sin acentos, minúsculas), reutilizando registros previos.
+- El cierre es una acción separada del último punto: `km_termino` obligatorio, puede ser mayor al último punto (ej. regreso), foto de odómetro opcional.
+- Editar o anular puntos exige `motivo`; se conserva foto anterior como archivo nuevo y se audita en `viaje_punto_historial` / `viaje_historial`.
+- Anulación lógica (`anulado`), no borrado físico. Anulados no se muestran a chofer/cliente y se excluyen de reportes.
+- Admin/superadmin también pueden editar rutas y puntos, con las mismas reglas de auditoría.
+- Offline previsto: IDs UUID generados en cliente, IndexedDB, compresión JPEG, sincronización idempotente y PWA (pendiente de UI).
 
 ### Informes PDF/CSV
 - Los informes abarcan **solo rutas terminadas** (`viajes.estado = 'terminado'`).

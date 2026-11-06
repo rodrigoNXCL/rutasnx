@@ -2,6 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import PuntosRuta from './PuntosRuta'
+
+interface TipoServicio {
+  id: string
+  codigo: string
+  nombre: string
+  flujo: 'simple' | 'puntos'
+}
 
 interface Asignacion {
   id: string
@@ -12,7 +20,10 @@ interface Asignacion {
     nombre: string
     origen: string | null
     destino: string | null
-    clientes: { nombre: string } | null
+    cliente_id: string
+    tipo_servicio_id: string
+    clientes: { id: string; nombre: string } | null
+    tipos_servicio: TipoServicio | null
   } | null
 }
 
@@ -25,6 +36,8 @@ interface Viaje {
   foto_km_termino: string | null
   observaciones: string | null
   estado: string
+  cliente_id: string | null
+  tipo_servicio_id: string
   camiones: { id: string; patente: string; marca: string | null }
   servicios: {
     id: string
@@ -33,6 +46,7 @@ interface Viaje {
     destino: string | null
     clientes: { nombre: string } | null
   } | null
+  tipos_servicio: TipoServicio | null
   gastos: Gasto[]
 }
 
@@ -65,6 +79,9 @@ export default function ChoferRegistro() {
   const [success, setSuccess] = useState('')
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+  const esPuntos =
+    (viajeActual?.tipos_servicio?.flujo ??
+      asignacion?.servicios?.tipos_servicio?.flujo) === 'puntos'
 
   const [form, setForm] = useState({
     fecha: today,
@@ -283,7 +300,7 @@ export default function ChoferRegistro() {
 
       const viaje = await res.json()
       setViajeActual(viaje)
-      setSuccess('Día iniciado')
+      setSuccess(esPuntos ? 'Ruta iniciada' : 'Día iniciado')
 
       setTimeout(() => setSuccess(''), 5000)
     } catch (error) {
@@ -403,12 +420,12 @@ export default function ChoferRegistro() {
 
       if (!res.ok) {
         const data = await res.json()
-        setError(data.error || 'Error al terminar el día')
+        setError(data.error || (esPuntos ? 'Error al cerrar la ruta' : 'Error al terminar el día'))
         setSaving(false)
         return
       }
 
-      setSuccess('Día terminado')
+      setSuccess(esPuntos ? 'Ruta cerrada' : 'Día terminado')
       setGastos([])
 
       setTimeout(() => {
@@ -449,7 +466,11 @@ export default function ChoferRegistro() {
     <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
       <div className="max-w-lg mx-auto px-6 py-8">
         <h1 className="text-2xl font-semibold text-white tracking-tight mb-8">
-          {loadingFecha ? 'Cargando...' : (viajeActual ? 'Terminar Día' : 'Iniciar Día')}
+          {loadingFecha
+            ? 'Cargando...'
+            : viajeActual
+              ? (esPuntos ? 'Ruta en curso' : 'Terminar Día')
+              : 'Iniciar Día'}
         </h1>
 
         {error && (
@@ -468,7 +489,14 @@ export default function ChoferRegistro() {
           <form onSubmit={terminarDia} className="space-y-5">
             <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-zinc-400">Día en curso</p>
+                <div>
+                  <p className="text-sm font-medium text-zinc-400">Ruta en curso</p>
+                  {viajeActual.tipos_servicio && (
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {viajeActual.tipos_servicio.nombre}
+                    </p>
+                  )}
+                </div>
                 <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400">En proceso</span>
               </div>
               <div className="space-y-1">
@@ -478,6 +506,14 @@ export default function ChoferRegistro() {
                 )}
               </div>
             </div>
+
+            {esPuntos && (
+              <PuntosRuta
+                viajeId={viajeActual.id}
+                clienteId={viajeActual.cliente_id}
+                kmInicio={viajeActual.km_inicio}
+              />
+            )}
 
             <div className="rounded-xl p-5 border space-y-4" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
               <div>
@@ -497,13 +533,15 @@ export default function ChoferRegistro() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Foto respaldo</label>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                  {esPuntos ? 'Foto odómetro final (opcional)' : 'Foto respaldo'}
+                </label>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileKmTerminoChange}
                   className="w-full text-sm text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 transition-colors"
-                  required
+                  required={!esPuntos}
                 />
                 {form.fotoKmTerminoPreview && (
                   <img src={form.fotoKmTerminoPreview} alt="Preview" className="mt-3 rounded-lg max-h-40 object-cover" />
@@ -601,7 +639,7 @@ export default function ChoferRegistro() {
               className="w-full rounded-xl px-4 py-3.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
               style={{ background: '#10B981' }}
             >
-              {saving ? (uploading ? 'Subiendo...' : 'Guardando...') : 'Terminar Día'}
+              {saving ? (uploading ? 'Subiendo...' : 'Guardando...') : (esPuntos ? 'Cerrar ruta' : 'Terminar Día')}
             </button>
           </form>
         ) : (
@@ -648,7 +686,14 @@ export default function ChoferRegistro() {
                   <p className="text-xs text-zinc-500">{asignacion.camiones.marca}</p>
                 )}
                 {asignacion.servicios && (
-                  <p className="text-xs text-zinc-500 mt-1">{asignacion.servicios.nombre}</p>
+                  <div className="mt-1 space-y-1">
+                    <p className="text-xs text-zinc-500">{asignacion.servicios.nombre}</p>
+                    {asignacion.servicios.tipos_servicio && (
+                      <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                        {asignacion.servicios.tipos_servicio.nombre}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             )}
