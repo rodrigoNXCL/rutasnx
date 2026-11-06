@@ -17,8 +17,9 @@ export default async function AdminLayout({
               <a href="/admin/dashboard" className="text-zinc-400 hover:text-white transition-colors">Dashboard</a>
               <a href="/admin/asignaciones" className="text-zinc-400 hover:text-white transition-colors">Jornadas</a>
               <a href="/admin/rutas" className="text-zinc-400 hover:text-white transition-colors">Rutas</a>
-              <a href="/admin/camiones" className="text-zinc-400 hover:text-white transition-colors">Camiones</a>
-              <a href="/admin/choferes" className="text-zinc-400 hover:text-white transition-colors">Chóferes</a>
+<a href="/admin/camiones" className="text-zinc-400 hover:text-white transition-colors">Camiones</a>
+<a href="/admin/empresas" className="text-zinc-400 hover:text-white transition-colors">Empresas</a>
+<a href="/admin/choferes" className="text-zinc-400 hover:text-white transition-colors">Chóferes</a>
               <a href="/admin/clientes" className="text-zinc-400 hover:text-white transition-colors">Clientes</a>
               <a href="/admin/servicios" className="text-zinc-400 hover:text-white transition-colors">Servicios</a>
               <a href="/admin/tipos-servicio" className="text-zinc-400 hover:text-white transition-colors">Tipos</a>

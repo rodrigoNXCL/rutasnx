@@ -1,0 +1,74 @@
+import { NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { hashPassword } from '@/lib/auth'
+
+export async function POST(request: Request) {
+  try {
+    const session = await requireAdmin()
+    const supabase = createAdminClient()
+
+    const body = await request.json()
+    const { nombre, rut, telefono, email, password } = body
+
+    if (!nombre || !rut || !password) {
+      return NextResponse.json({ error: 'Nombre, RUT y password son obligatorios' }, { status: 400 })
+    }
+
+    // 1️⃣ Crear la empresa
+    const { data: empresa, error: empError } = await supabase
+      .from('empresas')
+      .insert({
+        nombre,
+        rut,
+        telefono,
+        email,
+        activo: true,
+      })
+      .select()
+      .single()
+
+    if (empError) {
+      return NextResponse.json({ error: empError.message }, { status: 500 })
+    }
+
+    // 2️⃣ Generar email del admin a partir del RUT (formato admin@<rut>.cl)
+    const emailAdmin = email || `${rut.replace(/[^0-9kK]/g, '').toLowerCase()}@test.cl`
+
+    // 3️⃣ Hashear la password
+    const passwordHash = await hashPassword(password)
+
+    // 4️⃣ Crear el usuario admin vinculado a la empresa
+    const { data: usuario, error: userError } = await supabase
+      .from('usuarios')
+      .insert({
+        empresa_id: empresa.id,
+        email: emailAdmin,
+        password_hash: passwordHash,
+        nombre: `Admin ${empresa.nombre}`,
+        rol: 'admin',
+        activo: true,
+      })
+      .select()
+      .single()
+
+    if (userError) {
+      // Intento derollback: borrar la empresa creada
+      await supabase.from('empresas').delete().eq('id', empresa.id)
+      return NextResponse.json({ error: userError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      empresa,
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+      },
+    })
+  } catch (error) {
+    console.error('Error creando empresa + admin:', error)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
