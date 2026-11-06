@@ -3,6 +3,27 @@ import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { hashPassword } from '@/lib/auth'
 
+export async function GET() {
+  try {
+    await requireAdmin()
+    const supabase = createAdminClient()
+
+    const { data: empresas, error } = await supabase
+      .from('empresas')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(empresas || [])
+  } catch (error) {
+    console.error('Error listando empresas:', error)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await requireAdmin()

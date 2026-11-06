@@ -132,9 +132,17 @@ export async function POST(
       )
     }
 
+    const { data: ultimoOrden } = await supabase
+      .from('viaje_puntos')
+      .select('orden')
+      .eq('viaje_id', id)
+      .order('orden', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
     const orden = Number.isInteger(ordenBody)
       ? ordenBody
-      : (ultimoPunto?.orden ?? 0) + 1
+      : (ultimoOrden?.orden ?? 0) + 1
 
     if (!Number.isInteger(orden) || orden < 1) {
       return NextResponse.json({ error: 'Orden de punto inválido' }, { status: 400 })

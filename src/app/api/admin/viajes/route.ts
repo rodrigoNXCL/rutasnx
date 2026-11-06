@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { EstadoViaje } from '@/types/database'
 
 export async function GET(request: Request) {
   try {
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
     const camionId = searchParams.get('camion_id')
     const tipoServicioId = searchParams.get('tipo_servicio_id')
 
-    if (estado) query = query.eq('estado', estado)
+    if (estado) query = query.eq('estado', estado as EstadoViaje)
     if (clienteId) query = query.eq('cliente_id', clienteId)
     if (choferId) query = query.eq('chofer_id', choferId)
     if (camionId) query = query.eq('camion_id', camionId)

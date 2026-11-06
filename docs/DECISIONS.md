@@ -149,3 +149,5 @@
 | 2026-09-07 | Valorizador de km con historial de auditoría | Valorizar rutas por rango de fechas con trazabilidad de cambios |
 | 2026-09-07 | Multi-usuario por cliente (tabla cliente_usuarios) | Varios logins pueden acceder a la info de un mismo cliente |
 | 2026-10-14 | Cambio de camión en un servicio = asignación nueva + desactivar la vieja | Viajes conservan su camion_id; informes agregan por empresa+fecha sin filtrar por camión, por lo que un mes con dos camiones no se afecta |
+| 2026-11-06 | `PuntosRuta` nunca se anida dentro de otro `<form>` | Formularios anidados disparan el submit del formulario externo (cierre de ruta) y rompen el guardado de puntos |
+| 2026-11-06 | `orden` de un punto nuevo = máximo histórico (incluye anulados) + 1 | Evita colisiones con `UNIQUE(viaje_id, orden)` cuando existen puntos anulados |

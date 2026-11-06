@@ -486,7 +486,7 @@ export default function ChoferRegistro() {
         )}
 
         {viajeActual ? (
-          <form onSubmit={terminarDia} className="space-y-5">
+          <div className="space-y-5">
             <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -515,6 +515,7 @@ export default function ChoferRegistro() {
               />
             )}
 
+            <form onSubmit={terminarDia} className="space-y-5">
             <div className="rounded-xl p-5 border space-y-4" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
               <div>
                 <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Km Término</label>
@@ -641,7 +642,8 @@ export default function ChoferRegistro() {
             >
               {saving ? (uploading ? 'Subiendo...' : 'Guardando...') : (esPuntos ? 'Cerrar ruta' : 'Terminar Día')}
             </button>
-          </form>
+            </form>
+          </div>
         ) : (
           <form onSubmit={iniciarDia} className="space-y-5">
             <div className="mb-5">

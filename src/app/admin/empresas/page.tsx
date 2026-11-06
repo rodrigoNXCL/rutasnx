@@ -9,6 +9,7 @@ export default function AdminEmpresas() {
   const [exito, setExito] = useState<string | null>(null)
   const [nombre, setNombre] = useState('')
   const [rut, setRut] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [password, setPassword] = useState('')
 
   interface Empresa {
@@ -18,7 +19,7 @@ export default function AdminEmpresas() {
     telefono: string | null
     email: string | null
     activo: boolean
-    creado_en: string
+    created_at: string
   }
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function AdminEmpresas() {
       const res = await fetch('/api/admin/empresas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, rut, password }),
+        body: JSON.stringify({ nombre, rut, telefono, password }),
       })
 
       if (!res.ok) {
@@ -67,6 +68,7 @@ export default function AdminEmpresas() {
       )
       setNombre('')
       setRut('')
+      setTelefono('')
       setPassword('')
       // Volvemos a cargar la lista de empresas
       fetch('/api/admin/empresas', {
