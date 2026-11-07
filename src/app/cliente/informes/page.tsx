@@ -295,6 +295,21 @@ export default function ClienteInformes() {
   return (
     <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
       <div className="max-w-5xl mx-auto px-6 py-10">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          <span
+            className="px-3 py-1.5 rounded-lg text-sm text-white border border-emerald-500/40"
+            style={{ background: '#10B981' }}
+          >
+            Rutas y gastos
+          </span>
+          <a
+            href="/cliente/informes/puntos"
+            className="px-3 py-1.5 rounded-lg text-sm text-zinc-400 border border-zinc-800 hover:text-white transition-colors"
+          >
+            Puntos y guias
+          </a>
+        </div>
+
         <h1 className="text-2xl font-semibold text-white tracking-tight mb-8">Informes</h1>
 
         <div className="rounded-xl border p-5 mb-8" style={{ background: '#141414', borderColor: '#2A2A2A' }}>

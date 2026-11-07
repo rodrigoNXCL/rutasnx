@@ -4,9 +4,7 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
   plugins: [
-    vinext({
-      cache: false,
-    }),
+    vinext(),
     cloudflare({
       viteEnvironment: {
         name: "rsc",

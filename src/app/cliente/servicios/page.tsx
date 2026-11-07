@@ -22,7 +22,19 @@ interface Viaje {
   estado: string
   camiones: { patente: string; marca: string | null } | null
   choferes: { usuarios: { nombre: string } | null } | null
+  tipos_servicio: { flujo: 'simple' | 'puntos' } | null
   gastos: Gasto[]
+  viaje_puntos: Punto[]
+}
+
+interface Punto {
+  id: string
+  orden: number
+  tipo: 'retiro' | 'entrega'
+  nombre_punto: string
+  km_llegada: number
+  foto_guia_url: string | null
+  captured_at: string
 }
 
 interface Servicio {
@@ -51,10 +63,6 @@ export default function ClienteServicios() {
   const [servicioAbierto, setServicioAbierto] = useState<string | null>(null)
   const [viajesAbiertos, setViajesAbiertos] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    fetchServicios()
-  }, [])
-
   async function fetchServicios() {
     try {
       const res = await fetch('/api/cliente/servicios')
@@ -72,6 +80,11 @@ export default function ClienteServicios() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchServicios()
+  }, [])
 
   function toggleServicio(id: string) {
     setServicioAbierto(servicioAbierto === id ? null : id)
@@ -261,6 +274,59 @@ export default function ClienteServicios() {
                                     <div className="text-sm text-zinc-400 space-y-1">
                                       {viaje.ruta && <p>Ruta: <span className="text-white">{viaje.ruta}</span></p>}
                                       {viaje.observaciones && <p>Obs.: <span className="text-white">{viaje.observaciones}</span></p>}
+                                    </div>
+                                  )}
+
+                                  {viaje.viaje_puntos.length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">
+                                        Puntos y guías ({viaje.viaje_puntos.length})
+                                      </p>
+                                      <div className="overflow-x-auto rounded-lg border border-zinc-800">
+                                        <table className="w-full text-sm">
+                                          <thead>
+                                            <tr className="text-[10px] uppercase tracking-wide text-zinc-500 border-b border-zinc-800">
+                                              <th className="text-left px-3 py-2 font-medium">Punto</th>
+                                              <th className="text-left px-3 py-2 font-medium">Tipo</th>
+                                              <th className="text-right px-3 py-2 font-medium">Km punto</th>
+                                              <th className="text-right px-3 py-2 font-medium">Guía</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {viaje.viaje_puntos.map((punto) => (
+                                              <tr key={punto.id} className="border-b border-zinc-800/60 last:border-b-0">
+                                                <td className="px-3 py-2 text-zinc-300">{punto.orden}. {punto.nombre_punto}</td>
+                                                <td className="px-3 py-2">
+                                                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                                                    punto.tipo === 'retiro'
+                                                      ? 'bg-sky-500/20 text-sky-400'
+                                                      : 'bg-amber-500/20 text-amber-400'
+                                                  }`}>
+                                                    {punto.tipo}
+                                                  </span>
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-zinc-300">
+                                                  {punto.km_llegada.toLocaleString('es-CL')}
+                                                </td>
+                                                <td className="px-3 py-2 text-right">
+                                                  {punto.foto_guia_url ? (
+                                                    <a
+                                                      href={punto.foto_guia_url}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-xs text-emerald-400 hover:underline"
+                                                    >
+                                                      Ver guía
+                                                    </a>
+                                                  ) : (
+                                                    <span className="text-xs text-zinc-600">—</span>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
                                     </div>
                                   )}
 

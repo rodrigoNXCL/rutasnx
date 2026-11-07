@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { getSession, hashPassword } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { hashPassword } from '@/lib/auth'
+
+async function requireSuperadminApi() {
+  const session = await getSession()
+  if (!session || session.rol !== 'superadmin') {
+    return null
+  }
+  return session
+}
 
 export async function GET() {
   try {
-    await requireAdmin()
+    const session = await requireSuperadminApi()
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
     const supabase = createAdminClient()
 
     const { data: empresas, error } = await supabase
@@ -26,7 +37,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await requireAdmin()
+    const session = await requireSuperadminApi()
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
     const supabase = createAdminClient()
 
     const body = await request.json()

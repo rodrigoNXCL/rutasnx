@@ -98,6 +98,32 @@ export default function ChoferRegistro() {
 
   const [gastos, setGastos] = useState<GastoForm[]>([])
 
+  function guardarViajeCache(viaje: Viaje | null) {
+    try {
+      if (viaje) {
+        localStorage.setItem('rutasnx:viaje-activo', JSON.stringify(viaje))
+      } else {
+        localStorage.removeItem('rutasnx:viaje-activo')
+      }
+    } catch {
+      // localStorage no disponible
+    }
+  }
+
+  function aplicarViaje(viaje: Viaje) {
+    setViajeActual(viaje)
+    setForm({
+      fecha: viaje.fecha,
+      km_inicio: String(viaje.km_inicio),
+      km_termino: '',
+      observaciones: viaje.observaciones || '',
+      fotoKmInicio: null,
+      fotoKmInicioPreview: viaje.foto_km_inicio,
+      fotoKmTermino: null,
+      fotoKmTerminoPreview: null,
+    })
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const fechaParam = params.get('fecha')
@@ -105,15 +131,12 @@ export default function ChoferRegistro() {
       onFechaChange(fechaParam)
     }
     fetchAsignaciones()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function fetchAsignaciones() {
     try {
-      const [asigRes, viajeRes] = await Promise.all([
-        fetch('/api/chofer/asignacion'),
-        fetch('/api/viajes/hoy'),
-      ])
-
+      const asigRes = await fetch('/api/chofer/asignacion')
       if (asigRes.ok) {
         const data = await asigRes.json()
         setAsignaciones(data)
@@ -121,25 +144,34 @@ export default function ChoferRegistro() {
           setAsignacion(data[0])
         }
       }
+    } catch (error) {
+      console.error('Error cargando asignaciones:', error)
+    }
 
+    try {
+      const viajeRes = await fetch('/api/viajes/hoy')
       if (viajeRes.ok) {
         const data = await viajeRes.json()
         if (data.viaje) {
-          setViajeActual(data.viaje)
-          setForm({
-            fecha: data.viaje.fecha,
-            km_inicio: String(data.viaje.km_inicio),
-            km_termino: '',
-            observaciones: data.viaje.observaciones || '',
-            fotoKmInicio: null,
-            fotoKmInicioPreview: data.viaje.foto_km_inicio,
-            fotoKmTermino: null,
-            fotoKmTerminoPreview: null,
-          })
+          aplicarViaje(data.viaje)
+          guardarViajeCache(data.viaje)
+        } else {
+          setViajeActual(null)
+          guardarViajeCache(null)
         }
+        return
       }
     } catch (error) {
-      console.error('Error fetching:', error)
+      console.error('Error cargando viaje:', error)
+    }
+
+    try {
+      const cache = localStorage.getItem('rutasnx:viaje-activo')
+      if (cache) {
+        aplicarViaje(JSON.parse(cache) as Viaje)
+      }
+    } catch {
+      // sin caché disponible
     } finally {
       setLoading(false)
     }
@@ -163,6 +195,7 @@ export default function ChoferRegistro() {
         const data = await res.json()
         if (data.viaje) {
           setViajeActual(data.viaje)
+          guardarViajeCache(data.viaje)
           setForm(prev => ({
             ...prev,
             fecha: newFecha,
@@ -177,6 +210,7 @@ export default function ChoferRegistro() {
           setGastos([])
         } else {
           setViajeActual(null)
+          guardarViajeCache(null)
           setForm(prev => ({
             ...prev,
             fecha: newFecha,
@@ -300,10 +334,11 @@ export default function ChoferRegistro() {
 
       const viaje = await res.json()
       setViajeActual(viaje)
+      guardarViajeCache(viaje)
       setSuccess(esPuntos ? 'Ruta iniciada' : 'Día iniciado')
 
       setTimeout(() => setSuccess(''), 5000)
-    } catch (error) {
+    } catch {
       setError('Error de conexión')
     } finally {
       setSaving(false)
@@ -426,12 +461,13 @@ export default function ChoferRegistro() {
       }
 
       setSuccess(esPuntos ? 'Ruta cerrada' : 'Día terminado')
+      guardarViajeCache(null)
       setGastos([])
 
       setTimeout(() => {
         router.push('/chofer/historial')
       }, 2000)
-    } catch (error) {
+    } catch {
       setError('Error de conexión')
     } finally {
       setSaving(false)
@@ -509,6 +545,7 @@ export default function ChoferRegistro() {
 
             {esPuntos && (
               <PuntosRuta
+                key={viajeActual.id}
                 viajeId={viajeActual.id}
                 clienteId={viajeActual.cliente_id}
                 kmInicio={viajeActual.km_inicio}

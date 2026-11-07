@@ -1,5 +1,7 @@
 # NXChile — Documento de Arquitectura v1.1
 
+> **Nota:** documento histórico (v1.1). El estado actual, stack y decisiones vigentes están en `docs/PROJECT.md`, `docs/CURRENT.md` y `docs/DECISIONS.md`.
+
 ## 1. Visión General
 
 Aplicación web de control de kilómetros de rutas y gastos asociados para operaciones de transporte en Chile.
@@ -222,7 +224,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbG...
 
 | Riesgo | Impacto | Mitigación |
 |--------|---------|------------|
-| Chofer sin conexión en ruta | Alto | Fase 1: requiere conexión mínima al enviar. Fase 2: PWA con IndexedDB para modo offline. |
+| Chofer sin conexión en ruta | Alto | Implementado: PWA con service worker, puntos en IndexedDB y sincronización idempotente al reconectar (ver `docs/CURRENT.md`). |
 | Fotos de alta resolución | Medio | Compresión en cliente antes de subir. Límite bucket: 5MB/archivo. |
 | Zona horaria incorrecta | Medio | Forzar America/Santiago en input de fecha y en Server Actions. |
 | Supabase free tier (500MB) | Bajo | Suficiente para inicio, migrar a Pro cuando crezca. |

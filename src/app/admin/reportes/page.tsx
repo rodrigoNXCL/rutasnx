@@ -2,13 +2,15 @@
 
 import { useState } from 'react'
 import InformesTab from './informes-tab'
+import PuntosTab from './puntos-tab'
 import ResumenDiarioTab from './resumen-tab'
 import ValorizadorTab from './valorizador-tab'
 
-type TabKey = 'informes' | 'resumen' | 'valorizador'
+type TabKey = 'informes' | 'puntos' | 'resumen' | 'valorizador'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'informes', label: 'Informes' },
+  { key: 'puntos', label: 'Puntos y Guías' },
   { key: 'resumen', label: 'Resumen Diario' },
   { key: 'valorizador', label: 'Valorizador KM' },
 ]
@@ -37,6 +39,7 @@ export default function AdminReportes() {
       </div>
 
       {tab === 'informes' && <InformesTab />}
+      {tab === 'puntos' && <PuntosTab />}
       {tab === 'resumen' && <ResumenDiarioTab />}
       {tab === 'valorizador' && <ValorizadorTab />}
     </div>

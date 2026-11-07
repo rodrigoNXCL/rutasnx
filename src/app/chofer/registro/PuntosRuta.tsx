@@ -1,6 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  eliminarPuntoOffline,
+  guardarPuntoOffline,
+  listarPuntosOffline,
+} from '@/lib/offline-queue'
 
 interface Punto {
   id: string
@@ -10,6 +15,28 @@ interface Punto {
   km_llegada: number
   foto_guia_url: string
   captured_at: string
+  pendiente?: boolean
+}
+
+const PUNTOS_CACHE_PREFIX = 'rutasnx:puntos:'
+
+function leerPuntosCache(viajeId: string): Punto[] {
+  try {
+    const raw = localStorage.getItem(`${PUNTOS_CACHE_PREFIX}${viajeId}`)
+    if (!raw) return []
+    const data = JSON.parse(raw)
+    return Array.isArray(data) ? (data as Punto[]) : []
+  } catch {
+    return []
+  }
+}
+
+function guardarPuntosCache(viajeId: string, puntos: Punto[]): void {
+  try {
+    localStorage.setItem(`${PUNTOS_CACHE_PREFIX}${viajeId}`, JSON.stringify(puntos))
+  } catch {
+    // localStorage no disponible o lleno
+  }
 }
 
 interface PuntosRutaProps {
@@ -33,6 +60,8 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [pendientes, setPendientes] = useState(0)
+  const [sincronizando, setSincronizando] = useState(false)
 
   const [tipo, setTipo] = useState<'retiro' | 'entrega'>('entrega')
   const [nombre, setNombre] = useState('')
@@ -55,25 +84,112 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
   const [anulando, setAnulando] = useState<Punto | null>(null)
   const [motivoAnulacion, setMotivoAnulacion] = useState('')
 
+  const previewsPendientes = useRef<string[]>([])
+  const cargandoRef = useRef(false)
+  const recargarRef = useRef(false)
+
   const ultimoKm = puntos.length > 0 ? puntos[puntos.length - 1].km_llegada : kmInicio
 
+  function tomarPreviewsPendientes() {
+    const previas = previewsPendientes.current
+    previewsPendientes.current = []
+    return previas
+  }
+
   async function cargarPuntos() {
+    if (cargandoRef.current) {
+      recargarRef.current = true
+      return
+    }
+
+    cargandoRef.current = true
+    const previewsAnteriores = tomarPreviewsPendientes()
+    let puntosServidor: Punto[] = []
+    let puntosPendientes: Punto[] = []
+
     try {
-      const res = await fetch(`/api/viajes/${viajeId}/puntos`)
-      if (res.ok) {
-        const data = await res.json()
-        setPuntos(data.puntos || [])
+      try {
+        const res = await fetch(`/api/viajes/${viajeId}/puntos`)
+        if (res.ok) {
+          const data = await res.json()
+          puntosServidor = data.puntos || []
+          guardarPuntosCache(viajeId, puntosServidor)
+        } else {
+          puntosServidor = leerPuntosCache(viajeId)
+        }
+      } catch (err) {
+        console.error('Error cargando puntos:', err)
+        puntosServidor = leerPuntosCache(viajeId)
       }
-    } catch (err) {
-      console.error('Error cargando puntos:', err)
+
+      try {
+        const pendientesLocales = await listarPuntosOffline()
+        const idsServidor = new Set(puntosServidor.map((punto) => punto.id))
+        const ultimoOrden = puntosServidor[puntosServidor.length - 1]?.orden ?? 0
+
+        puntosPendientes = pendientesLocales
+          .filter((punto) => punto.viaje_id === viajeId && !idsServidor.has(punto.id))
+          .map((punto, index) => {
+            const previewUrl = URL.createObjectURL(punto.foto)
+            previewsPendientes.current.push(previewUrl)
+
+            return {
+              id: punto.id,
+              orden: ultimoOrden + index + 1,
+              tipo: punto.tipo,
+              nombre_punto: punto.nombre_punto,
+              km_llegada: punto.km_llegada,
+              foto_guia_url: previewUrl,
+              captured_at: punto.captured_at,
+              pendiente: true,
+            }
+          })
+      } catch (err) {
+        console.error('Error cargando puntos pendientes:', err)
+      }
+
+      setPuntos([...puntosServidor, ...puntosPendientes])
     } finally {
+      setTimeout(() => {
+        for (const url of previewsAnteriores) {
+          URL.revokeObjectURL(url)
+        }
+      }, 1000)
+
+      cargandoRef.current = false
       setLoading(false)
+
+      if (recargarRef.current) {
+        recargarRef.current = false
+        void cargarPuntos()
+      }
     }
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarPuntos()
+    actualizarPendientes()
+    sincronizarPendientes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      for (const url of previewsPendientes.current) {
+        URL.revokeObjectURL(url)
+      }
+      previewsPendientes.current = []
+    }
+  }, [])
+
+  useEffect(() => {
+    function alRecuperarConexion() {
+      sincronizarPendientes()
+    }
+
+    window.addEventListener('online', alRecuperarConexion)
+    return () => window.removeEventListener('online', alRecuperarConexion)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -106,9 +222,9 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
     setSuccess('')
   }
 
-  async function uploadFoto(file: File): Promise<string | null> {
+  async function uploadBlob(blob: Blob, nombreArchivo: string): Promise<string | null> {
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', new File([blob], nombreArchivo, { type: blob.type || 'image/jpeg' }))
     formData.append('bucket', 'guias')
 
     const res = await fetch('/api/upload', {
@@ -120,6 +236,80 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
 
     const data = await res.json()
     return data.url
+  }
+
+  async function uploadFoto(file: File): Promise<string | null> {
+    return uploadBlob(file, file.name || 'guia.jpg')
+  }
+
+  async function actualizarPendientes() {
+    try {
+      const locales = await listarPuntosOffline()
+      setPendientes(locales.filter((punto) => punto.viaje_id === viajeId).length)
+    } catch {
+      // IndexedDB no disponible: el flujo online sigue funcionando
+    }
+  }
+
+  async function sincronizarPendientes() {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+
+    let pendientesLocales
+    try {
+      const todos = await listarPuntosOffline()
+      pendientesLocales = todos.filter((punto) => punto.viaje_id === viajeId)
+    } catch {
+      return
+    }
+
+    if (pendientesLocales.length === 0) {
+      await actualizarPendientes()
+      return
+    }
+
+    setSincronizando(true)
+    let sincronizados = 0
+
+    for (const pendiente of pendientesLocales) {
+      try {
+        const fotoUrl = await uploadBlob(pendiente.foto, `guia-${pendiente.id}.jpg`)
+        if (!fotoUrl) break
+
+        const res = await fetch(`/api/viajes/${pendiente.viaje_id}/puntos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: pendiente.id,
+            tipo: pendiente.tipo,
+            nombre_punto: pendiente.nombre_punto,
+            km_llegada: pendiente.km_llegada,
+            foto_guia_url: fotoUrl,
+            captured_at: pendiente.captured_at,
+          }),
+        })
+
+        if (res.status === 409) {
+          await eliminarPuntoOffline(pendiente.id)
+          continue
+        }
+
+        if (!res.ok) break
+
+        await eliminarPuntoOffline(pendiente.id)
+        sincronizados++
+      } catch {
+        break
+      }
+    }
+
+    await actualizarPendientes()
+    setSincronizando(false)
+
+    if (sincronizados > 0) {
+      setSuccess(`${sincronizados} punto${sincronizados !== 1 ? 's' : ''} sincronizado${sincronizados !== 1 ? 's' : ''}`)
+      await cargarPuntos()
+      setTimeout(() => setSuccess(''), 4000)
+    }
   }
 
   function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -173,7 +363,65 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       return
     }
 
+    const puntoId = crypto.randomUUID()
+    const capturedAt = new Date().toISOString()
+    const fotoArchivo = foto
+    const puntoLocal = {
+      id: puntoId,
+      viaje_id: viajeId,
+      cliente_id: clienteId,
+      tipo,
+      nombre_punto: nombreLimpio,
+      km_llegada: kmNumero,
+      captured_at: capturedAt,
+      foto: fotoArchivo,
+      created_at: capturedAt,
+    }
+
+    async function guardarOffline(
+      mensaje = 'Punto guardado sin conexión. Se enviará al reconectar.'
+    ) {
+      try {
+        await guardarPuntoOffline(puntoLocal)
+        await actualizarPendientes()
+
+        const previewUrl = URL.createObjectURL(fotoArchivo)
+        previewsPendientes.current.push(previewUrl)
+        setPuntos((prev) => [
+          ...prev,
+          {
+            id: puntoId,
+            orden: (prev[prev.length - 1]?.orden ?? 0) + 1,
+            tipo,
+            nombre_punto: nombreLimpio,
+            km_llegada: kmNumero,
+            foto_guia_url: previewUrl,
+            captured_at: capturedAt,
+            pendiente: true,
+          },
+        ])
+
+        if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+
+        setNombre('')
+        setKm('')
+        setFoto(null)
+        setFotoPreview(null)
+        setSugerencias([])
+        setSuccess(mensaje)
+        setTimeout(() => setSuccess(''), 5000)
+      } catch {
+        setError('No se pudo guardar el punto sin conexión')
+      }
+    }
+
     setSaving(true)
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      await guardarOffline()
+      setSaving(false)
+      return
+    }
 
     try {
       setUploading(true)
@@ -181,7 +429,9 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       setUploading(false)
 
       if (!fotoUrl) {
-        setError('Error subiendo la foto de la guía')
+        await guardarOffline(
+          'No se pudo subir la foto. El punto quedó pendiente para reintentar.'
+        )
         return
       }
 
@@ -189,15 +439,23 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: puntoId,
           tipo,
           nombre_punto: nombreLimpio,
           km_llegada: kmNumero,
           foto_guia_url: fotoUrl,
+          captured_at: capturedAt,
         }),
       })
 
       if (!res.ok) {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
+        if (res.status >= 500 || res.status === 401 || res.status === 403) {
+          await guardarOffline(
+            'No se pudo enviar el punto. Quedó pendiente para reintentar.'
+          )
+          return
+        }
         setError(data.error || 'Error al registrar el punto')
         return
       }
@@ -214,7 +472,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
 
       setTimeout(() => setSuccess(''), 4000)
     } catch {
-      setError('Error de conexión')
+      await guardarOffline()
     } finally {
       setSaving(false)
       setUploading(false)
@@ -365,6 +623,26 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
         </span>
       </div>
 
+      {pendientes > 0 && (
+        <div
+          className="p-3 rounded-lg border flex items-center justify-between gap-3"
+          style={{ background: '#1C1A0D', borderColor: '#5D5220' }}
+        >
+          <p className="text-xs text-amber-300">
+            {pendientes} punto{pendientes !== 1 ? 's' : ''} pendiente{pendientes !== 1 ? 's' : ''} de sincronizar. Sincroniza antes de cerrar la ruta.
+          </p>
+          <button
+            type="button"
+            onClick={sincronizarPendientes}
+            disabled={sincronizando}
+            className="text-xs px-3 py-1.5 rounded-lg text-white disabled:opacity-50"
+            style={{ background: '#10B981' }}
+          >
+            {sincronizando ? 'Sincronizando...' : 'Sincronizar'}
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="p-3 rounded-lg border" style={{ background: '#2D1515', borderColor: '#5D2020' }}>
           <p className="text-xs text-red-400">{error}</p>
@@ -398,6 +676,11 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
                       }`}>
                         {punto.tipo}
                       </span>
+                      {punto.pendiente && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400">
+                          Pendiente
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {punto.km_llegada.toLocaleString('es-CL')} km
@@ -410,26 +693,28 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
                 </a>
               </div>
 
-              <div className="flex gap-4 mt-3">
-                <button
-                  type="button"
-                  onClick={() => abrirEdicion(punto)}
-                  className="text-xs text-emerald-400 hover:text-emerald-300"
-                >
-                  Corregir
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    limpiarMensajes()
-                    setAnulando(punto)
-                    setMotivoAnulacion('')
-                  }}
-                  className="text-xs text-red-400 hover:text-red-300"
-                >
-                  Anular
-                </button>
-              </div>
+              {!punto.pendiente && (
+                <div className="flex gap-4 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => abrirEdicion(punto)}
+                    className="text-xs text-emerald-400 hover:text-emerald-300"
+                  >
+                    Corregir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      limpiarMensajes()
+                      setAnulando(punto)
+                      setMotivoAnulacion('')
+                    }}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Anular
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

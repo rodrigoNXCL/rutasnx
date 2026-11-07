@@ -46,25 +46,36 @@ rutasnx/
 │   ├── lib/
 │   │   ├── supabase/           # Clientes Supabase
 │   │   ├── auth.ts             # Auth propia (hash, sessions)
+│   │   ├── offline-queue.ts    # Cola de puntos offline (IndexedDB)
+│   │   ├── informe-puntos.ts   # Helpers de informe (CSV/fechas)
 │   │   └── utils.ts
+│   ├── components/
+│   │   ├── InformePuntos.tsx   # Informe compartido cliente/admin
+│   │   └── PwaRegister.tsx     # Registro del service worker
 │   ├── middleware.ts           # Routing por rol
 │   └── types/database.ts       # Tipos TypeScript
+├── public/
+│   ├── sw.js                   # Service worker (PWA)
+│   └── icon*.svg               # Iconos PWA
 ├── docs/
 ├── supabase/migrations/        # Migraciones SQL
+├── vitest.config.ts            # Config de pruebas
 └── ARQUITECTURA.md
 ```
 
 ## Estado
 
-v2.4 implementada y desplegada en producción (Cloudflare Workers).
+v2.5 implementada y desplegada en producción (Cloudflare Workers).
 - Rediseño UI completo con estética "Linear dark"
 - Login funcional con auth propia
-- Admin: CRUD completo + asignaciones + dashboard con detalle de rutas + reportes (tabs: Informes, Resumen Diario, Valorizador KM) + valorizador de km con auditoría + usuarios activos + multi-usuario por cliente
-- Chofer: registro de viajes con gastos y fotos
-- Cliente: portal con sus servicios y rutas (kilómetros y gastos en detalle) + informes PDF/CSV + resumen diario
+- Admin: CRUD completo + asignaciones + dashboard con detalle de rutas + reportes (tabs: Informes, Resumen Diario, Valorizador KM, Puntos y Guías) + valorizador de km con auditoría + usuarios activos + multi-usuario por cliente
+- Chofer: registro de viajes con gastos y fotos; flujo por puntos (retiro/entrega con foto de guía obligatoria) con captura offline y sincronización idempotente
+- Cliente: portal con sus servicios y rutas (kilómetros, gastos, puntos y guías en detalle) + informes PDF/CSV + resumen diario + informe de puntos y guías
 - Informes: solo rutas terminadas; el cliente solo gastos `peaje`, el admin todos los gastos y URLs de imágenes
 - Valorizador KM: valor por km en rangos de fecha, con historial de auditoría e informe valorizado (km × valor)
 - Multi-usuario por cliente: varios logins pueden acceder a la info de un mismo cliente
-- Tipos TypeScript alineados al esquema real (sin `never`)
+- PWA: manifest + service worker para el shell de `/chofer`; puntos pendientes en IndexedDB (`rutasnx-offline`) y ruta activa en `localStorage`
+- `/admin/empresas` restringido a `superadmin` (API 403 + link oculto)
+- Tipos TypeScript alineados al esquema real (sin `never`); `npx tsc --noEmit`, `npm test` (Vitest) y `npm run build` OK
 - Repo: https://github.com/rodrigoNXCL/rutasnx
 - URL: https://nxrutas.devnx-trans.workers.dev

@@ -64,6 +64,36 @@ export async function POST(
       return NextResponse.json({ error: acceso.error }, { status: acceso.status })
     }
 
+    const body = await request.json()
+    const {
+      id: puntoId,
+      orden: ordenBody,
+      tipo,
+      nombre_punto,
+      km_llegada,
+      foto_guia_url,
+      captured_at,
+    } = body
+
+    if (puntoId) {
+      const { data: existente } = await supabase
+        .from('viaje_puntos')
+        .select('*')
+        .eq('id', puntoId)
+        .maybeSingle()
+
+      if (existente) {
+        if (existente.viaje_id === id) {
+          return NextResponse.json(existente, { status: 200 })
+        }
+
+        return NextResponse.json(
+          { error: 'El identificador del punto ya existe en otra ruta' },
+          { status: 409 }
+        )
+      }
+    }
+
     if (acceso.flujo !== 'puntos') {
       return NextResponse.json(
         { error: 'Este tipo de servicio no usa puntos' },
@@ -77,17 +107,6 @@ export async function POST(
         { status: 400 }
       )
     }
-
-    const body = await request.json()
-    const {
-      id: puntoId,
-      orden: ordenBody,
-      tipo,
-      nombre_punto,
-      km_llegada,
-      foto_guia_url,
-      captured_at,
-    } = body
 
     const nombre = String(nombre_punto || '').trim()
     const foto = String(foto_guia_url || '').trim()
@@ -168,6 +187,25 @@ export async function POST(
       .single()
 
     if (error) {
+      if (error.code === '23505' && puntoId) {
+        const { data: existente } = await supabase
+          .from('viaje_puntos')
+          .select('*')
+          .eq('id', puntoId)
+          .maybeSingle()
+
+        if (existente) {
+          if (existente.viaje_id === id) {
+            return NextResponse.json(existente, { status: 200 })
+          }
+
+          return NextResponse.json(
+            { error: 'El identificador del punto ya existe en otra ruta' },
+            { status: 409 }
+          )
+        }
+      }
+
       if (error.code === '23505') {
         return NextResponse.json(
           { error: 'Ya existe un punto con ese orden en la ruta' },

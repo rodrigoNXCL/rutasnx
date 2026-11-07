@@ -2,7 +2,7 @@
 
 ## Paso Actual del Plan de Desarrollo
 
-**Paso 3** - Funcionalidades core completadas
+**Paso 3** - Funcionalidades core completadas (v2.5)
 
 ## Estado General
 
@@ -33,8 +33,14 @@
 - [x] UI admin para editar rutas/puntos (`/admin/rutas`)
 - [x] Creación de empresa + admin desde dashboard (`/admin/empresas`)
 - [x] Bug de guardado/render de puntos resuelto (formularios anidados y orden único)
-- [ ] Reportes con puntos y guías
-- [ ] Offline/PWA e idempotencia de sincronización
+- [x] Informe de puntos y guías para cliente (PDF/CSV por fecha, camión y chofer)
+- [x] Reportes con puntos y guías en admin (tab "Puntos y Guías")
+- [x] Portal cliente con puntos y guías en el detalle de ruta
+- [x] Restringir `/admin/empresas` a superadmin
+- [x] Offline/PWA e idempotencia de sincronización
+- [x] Aplicar índice `idx_viajes_cliente_estado_fecha` en Supabase
+- [x] Limpiar errores tsc preexistentes (`validator.ts`, `vite.config.ts`)
+- [x] Suite de pruebas automatizadas (Vitest)
 
 ## Estructura de Rutas Implementada
 
@@ -48,16 +54,17 @@
 - `/admin/clientes` - CRUD clientes
 - `/admin/servicios` - CRUD servicios
 - `/admin/rutas` - Rutas y puntos (filtros, detalle y corrección/anulación)
-- `/admin/empresas` - Crear empresa + usuario admin automático
+- `/admin/empresas` - Crear empresa + usuario admin automático (solo superadmin)
 - `/admin/tipos-servicio` - Catálogo de tipos de servicio por empresa
 - `/admin/asignaciones` - Asignar chofer+camión a servicio
-- `/admin/reportes` - Reportes con tabs: Informes (PDF/CSV rutas terminadas), Resumen Diario (PDF/CSV), Valorizador KM (PDF/CSV)
+- `/admin/reportes` - Reportes con tabs: Informes (PDF/CSV rutas terminadas), Resumen Diario (PDF/CSV), Valorizador KM (PDF/CSV), Puntos y Guías (PDF/CSV)
 - `/admin/valorizador` - Gestión del valorizador de kilometraje (CRUD + historial de cambios)
 - `/admin/usuarios` - Consulta de usuarios activos de la empresa
 - `/chofer/registro` - Registro de viajes (mobile)
 - `/chofer/historial` - Historial de viajes
 - `/cliente/servicios` - Portal cliente: servicios y rutas expandibles
 - `/cliente/informes` - Informes PDF/CSV de rutas terminadas
+- `/cliente/informes/puntos` - Informe PDF/CSV de rutas por puntos y guías (fecha, camión, chofer)
 - `/cliente/resumen` - Resumen diario PDF/CSV (fecha, km, peajes)
 
 ## Modelo de Asignaciones
@@ -100,6 +107,14 @@ Reglas:
 - Se permiten varias rutas secuenciales por camión/día.
 - Puntos anulados no se muestran al chofer/cliente y se excluyen de reportes.
 
+### PWA y captura offline (chofer)
+
+- `manifest.webmanifest` + service worker (`/sw.js`) cachean el shell de `/chofer` y los assets estáticos.
+- Los puntos se pueden registrar sin conexión: la foto y los datos se guardan en IndexedDB (`rutasnx-offline`).
+- Al recuperar conexión (o al presionar "Sincronizar"), se sube la foto y se hace `POST` con el mismo `id` (UUID), por lo que los reintentos son idempotentes.
+- El punto pendiente se muestra en la lista con badge "Pendiente"; se advierte sincronizar antes de cerrar la ruta.
+- La ruta activa se cachea en `localStorage` (`rutasnx:viaje-activo`) y la lista de puntos sincronizados en `rutasnx:puntos:{viajeId}` para mantener el último odómetro visible offline.
+
 ## APIs Implementadas
 
 - `POST /api/viajes/iniciar` - Inicia el día (km inicio + foto km)
@@ -110,17 +125,20 @@ Reglas:
 - `PATCH /api/gastos/[id]` - Edita un gasto (tipo, monto, descripción, foto)
 - `DELETE /api/gastos/[id]` - Elimina un gasto
 - `GET /api/viajes/[id]/puntos` - Lista puntos de una ruta (`incluir_anulados=true` para admin)
-- `POST /api/viajes/[id]/puntos` - Crea un punto (foto de guía obligatoria, odómetro validado)
+- `POST /api/viajes/[id]/puntos` - Crea un punto (foto de guía obligatoria, odómetro validado; acepta `id` de cliente para reintentos idempotentes y `captured_at`)
 - `PUT /api/viajes/[id]/puntos/[puntoId]` - Edita un punto (motivo obligatorio, auditoría)
 - `DELETE /api/viajes/[id]/puntos/[puntoId]` - Anula un punto (motivo obligatorio, auditoría)
 - `GET /api/puntos/sugerencias` - Autocompletado de puntos por cliente (normalizado)
 - `GET /api/tipos-servicio` / `POST /api/tipos-servicio` - Catálogo de tipos de servicio
 - `PUT /api/tipos-servicio/[id]` / `DELETE /api/tipos-servicio/[id]` - Edición/desactivación lógica
 - `POST /api/upload` - Upload de fotos (buckets: `gastos`, `km-fotos`, `guias`)
-- `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `cliente_usuarios`, gastos filtrados solo a `peaje`)
+- `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `cliente_usuarios`, gastos filtrados solo a `peaje`, incluye puntos y guías de rutas por puntos)
 - `GET /api/cliente/informes` - Informe de rutas terminadas del cliente en un periodo (solo gastos `peaje`)
+- `GET /api/cliente/informes/puntos` - Informe de rutas por puntos del cliente (fecha, camión, chofer, puntos y guías)
 - `GET /api/admin/informes` - Informe de rutas terminadas de la empresa en un periodo (todos los gastos + URLs de imágenes km/gastos)
+- `GET /api/admin/informes/puntos` - Informe de puntos y guías de la empresa (filtros cliente/servicio/camión/chofer)
 - `GET /api/admin/usuarios` - Usuarios (cuentas de login) de la empresa, con filtro por activos/rol
+- `GET/POST /api/admin/empresas` - Lista/crea empresas (solo `superadmin`)
 - `GET /api/admin/resumen-diario` - Resumen diario de la empresa (fecha, km, valor km, valor total, peajes, petróleo, otros)
 - `GET /api/cliente/resumen-diario` - Resumen diario del cliente (fecha, km, peajes)
 - `GET/POST/PUT/DELETE /api/admin/valorizador` - CRUD de valorizaciones de km (con auditoría en `valor_km_historial`)
@@ -137,7 +155,9 @@ Reglas:
 
 ## Último Cambio
 
-**Fase 1-2 de tipos de servicio y flujo por puntos.** Catálogo `tipos_servicio` por empresa (`reparto` simple / `fruta` puntos), servicios y viajes con snapshot de tipo y cliente, y soporte de múltiples rutas por camión/día (una sola abierta por camión/chofer). Se agregaron puntos de viaje con foto de guía obligatoria, odómetro absoluto, anulación lógica y auditoría (`viaje_punto_historial`, `viaje_historial`), bucket público `guias`, y APIs de puntos/autocompletado. La UI del chofer ya distingue el flujo `puntos`: registra puntos con autocompletado, foto de guía y odómetro; permite corregir/anular con motivo; y el cierre de ruta es una acción separada con odómetro final y foto opcional. `GET /api/viajes/hoy` ahora busca la ruta abierta sin filtrar por fecha (soporte cruce de medianoche) y `GET /api/viajes/fecha` devuelve `viajes[]` manteniendo `viaje` por compatibilidad. **Bug resuelto (2026-11-06)**: el punto no se guardaba porque `PuntosRuta` se renderizaba dentro del formulario de cierre de ruta (formularios HTML anidados), lo que además disparaba `terminarDia` y mostraba un error confuso. Se sacó `PuntosRuta` del formulario de cierre. También el `orden` del nuevo punto se calcula ahora sobre el máximo histórico (incluyendo anulados), evitando colisiones con `UNIQUE(viaje_id, orden)`. Se corrigió `/admin/empresas` (estado `telefono` faltante y `GET` de empresas) y el tipado del filtro `estado` en `/api/admin/viajes`. Además, el admin ahora puede **agregar o quitar acceso al portal desde la edición del cliente**: el acceso se gestiona vía `cliente_usuarios`, se puede revocar el usuario principal (limpiando `clientes.usuario_id`) y al re-agregar un email existente se reactiva y re-vincula la cuenta sin duplicarla. Pendiente: reportes con puntos y guías, offline/PWA e idempotencia de sincronización, portal cliente con puntos y restringir `/admin/empresas` a superadmin.
+**Fase 1-2 de tipos de servicio y flujo por puntos.** Catálogo `tipos_servicio` por empresa (`reparto` simple / `fruta` puntos), servicios y viajes con snapshot de tipo y cliente, y soporte de múltiples rutas por camión/día (una sola abierta por camión/chofer). Se agregaron puntos de viaje con foto de guía obligatoria, odómetro absoluto, anulación lógica y auditoría (`viaje_punto_historial`, `viaje_historial`), bucket público `guias`, y APIs de puntos/autocompletado. La UI del chofer ya distingue el flujo `puntos`: registra puntos con autocompletado, foto de guía y odómetro; permite corregir/anular con motivo; y el cierre de ruta es una acción separada con odómetro final y foto opcional. `GET /api/viajes/hoy` ahora busca la ruta abierta sin filtrar por fecha (soporte cruce de medianoche) y `GET /api/viajes/fecha` devuelve `viajes[]` manteniendo `viaje` por compatibilidad. **Bug resuelto (2026-11-06)**: el punto no se guardaba porque `PuntosRuta` se renderizaba dentro del formulario de cierre de ruta (formularios HTML anidados), lo que además disparaba `terminarDia` y mostraba un error confuso. Se sacó `PuntosRuta` del formulario de cierre. También el `orden` del nuevo punto se calcula ahora sobre el máximo histórico (incluyendo anulados), evitando colisiones con `UNIQUE(viaje_id, orden)`. Se corrigió `/admin/empresas` (estado `telefono` faltante y `GET` de empresas) y el tipado del filtro `estado` en `/api/admin/viajes`. Además, el admin ahora puede **agregar o quitar acceso al portal desde la edición del cliente**: el acceso se gestiona vía `cliente_usuarios`, se puede revocar el usuario principal (limpiando `clientes.usuario_id`) y al re-agregar un email existente se reactiva y re-vincula la cuenta sin duplicarla. Se agregó el **informe de puntos y guías para el cliente** (`/cliente/informes/puntos`): filtros por rango de fechas, camión y chofer aplicados en la consulta (y opciones en una consulta liviana separada para soportar temporadas con muchos registros); tabla por punto con km inicio, punto, km del punto, km final, total del día y enlace a cada guía; orden por **patente y fecha**; exportación PDF (tabla + apéndice de enlaces clickeables) y CSV; solo rutas cerradas y puntos vigentes, con aviso visible de que las rutas en tránsito no se muestran hasta que el chofer las cierre. En ese momento quedaron pendientes: reportes con puntos y guías en admin, offline/PWA e idempotencia de sincronización, portal cliente con puntos y restringir `/admin/empresas` a superadmin.
+
+**Cierre de pendientes (2026-11-06)**: se agregó el informe de puntos y guías en admin (tab "Puntos y Guías", filtros cliente/servicio/camión/chofer, PDF/CSV), el detalle de puntos y guías en el portal cliente, y se restringió `/admin/empresas` a `superadmin` (API 403 y link oculto). Se implementó PWA + captura offline de puntos con IndexedDB, sincronización idempotente por UUID al reconectar, caché de la ruta activa y aviso de pendientes. Se agregó el índice `idx_viajes_cliente_estado_fecha`, se limpiaron los errores de `tsc` y se incorporó Vitest con pruebas de CSV, fechas, RUT y valorizador. Validación: `npx tsc --noEmit`, `npm test` (13 pruebas) y `npm run build` OK.
 
 Anterior: El **Resumen Diario** quedó integrado dentro de **Reportes** (tabs: Informes / Resumen Diario / Valorizador KM). Nuevo **Valorizador de Kilometraje** (`/admin/valorizador`): el admin asigna un valor por km para un rango de fechas (con validación de solapamiento), queda guardado y se lista en un informe PDF/CSV dentro de Reportes; cada creación/modificación/eliminación queda registrada en `valor_km_historial` (auditoría). El tab **Valorizador KM** muestra el resumen diario **valorizado**: km del día × valor por km aplicable a la fecha, con totalización de la columna valor total. Nuevo soporte **multi-usuario por cliente** (tabla `cliente_usuarios`): se pueden asociar varios logins a un cliente y todos acceden a la info asociada; la gestión se hace desde Clientes → "N usuarios". Los APIs de cliente ahora resuelven el cliente vía `cliente_usuarios`. Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (tab Informes). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Antes del detalle de gastos y evidencias, el PDF muestra un bloque de **totales** (rutas, km recorridos y gastos). Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
 

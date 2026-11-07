@@ -359,6 +359,7 @@ export default function ChoferHistorial() {
                     {viaje.tipos_servicio?.flujo === 'puntos' && (
                       <div className="mb-6">
                         <PuntosRuta
+                          key={viaje.id}
                           viajeId={viaje.id}
                           clienteId={viaje.cliente_id}
                           kmInicio={viaje.km_inicio}

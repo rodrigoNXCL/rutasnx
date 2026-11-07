@@ -5,7 +5,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   return (
     <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
@@ -18,7 +18,9 @@ export default async function AdminLayout({
               <a href="/admin/asignaciones" className="text-zinc-400 hover:text-white transition-colors">Jornadas</a>
               <a href="/admin/rutas" className="text-zinc-400 hover:text-white transition-colors">Rutas</a>
 <a href="/admin/camiones" className="text-zinc-400 hover:text-white transition-colors">Camiones</a>
-<a href="/admin/empresas" className="text-zinc-400 hover:text-white transition-colors">Empresas</a>
+              {session.rol === 'superadmin' && (
+                <a href="/admin/empresas" className="text-zinc-400 hover:text-white transition-colors">Empresas</a>
+              )}
 <a href="/admin/choferes" className="text-zinc-400 hover:text-white transition-colors">Chóferes</a>
               <a href="/admin/clientes" className="text-zinc-400 hover:text-white transition-colors">Clientes</a>
               <a href="/admin/servicios" className="text-zinc-400 hover:text-white transition-colors">Servicios</a>

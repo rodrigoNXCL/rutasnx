@@ -494,6 +494,7 @@ export default function AdminRutas() {
 
               {seleccionada.tipos_servicio?.flujo === 'puntos' && (
                 <PuntosRuta
+                  key={seleccionada.id}
                   viajeId={seleccionada.id}
                   clienteId={seleccionada.cliente_id}
                   kmInicio={seleccionada.km_inicio}

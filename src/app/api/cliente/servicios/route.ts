@@ -1,8 +1,9 @@
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClienteIdsForUsuario } from '@/lib/cliente'
+import { shortenStorageUrl } from '@/lib/short-url'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getSession()
     if (!session || session.rol !== 'cliente') {
@@ -40,7 +41,9 @@ export async function GET() {
           created_at,
           camiones (patente, marca),
           choferes (usuarios (nombre)),
-          gastos (id, tipo, monto, descripcion, foto_url)
+          tipos_servicio (flujo),
+          gastos (id, tipo, monto, descripcion, foto_url),
+          viaje_puntos (id, orden, tipo, nombre_punto, km_llegada, foto_guia_url, captured_at, anulado)
         )
       `)
       .in('cliente_id', clienteIds)
@@ -51,11 +54,20 @@ export async function GET() {
       return Response.json({ error: error.message }, { status: 500 })
     }
 
+    const baseUrl = new URL(request.url).origin
+
     const datos = (servicios || []).map((servicio) => ({
       ...servicio,
       viajes: (servicio.viajes || []).map((viaje) => ({
         ...viaje,
         gastos: (viaje.gastos || []).filter((gasto) => gasto.tipo === 'peaje'),
+        viaje_puntos: (viaje.viaje_puntos || [])
+          .filter((punto) => !punto.anulado)
+          .sort((a, b) => a.orden - b.orden)
+          .map((punto) => ({
+            ...punto,
+            foto_guia_url: shortenStorageUrl(punto.foto_guia_url, baseUrl),
+          })),
       })),
     }))
 

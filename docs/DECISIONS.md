@@ -153,3 +153,14 @@
 | 2026-11-06 | `orden` de un punto nuevo = máximo histórico (incluye anulados) + 1 | Evita colisiones con `UNIQUE(viaje_id, orden)` cuando existen puntos anulados |
 | 2026-11-06 | Acceso al portal se gestiona vía `cliente_usuarios` | Permite agregar/quitar acceso (incluido el usuario principal); se limpia `clientes.usuario_id` y se desactiva la cuenta si no tiene más clientes |
 | 2026-11-06 | Re-agregar un email existente reutiliza la cuenta | Se reactiva y re-vincula en vez de crear usuarios duplicados |
+| 2026-11-06 | Informe de puntos para cliente en tabla plana por punto | Facilita lectura diaria y exportación; incluye guías por enlace corto y solo considera rutas cerradas con puntos vigentes |
+| 2026-11-06 | Informe de puntos ordenado por patente y fecha, con filtros en BD | La temporada de fruta genera muchos registros; se evita cargar todo en memoria y se advierte que las rutas en tránsito no aparecen |
+| 2026-11-06 | Índice `(cliente_id, estado, fecha)` en `viajes` | Los informes de cliente filtran por cliente, estado y rango de fechas; el índice existente parte por `empresa_id` y no aplica a esa consulta |
+| 2026-11-06 | Informe de puntos compartido entre cliente y admin (`InformePuntos` + `/api/admin/informes/puntos`) | Reutiliza tabla, PDF/CSV, filtros y orden; el admin agrega filtros por cliente/servicio y la empresa se resuelve por sesión |
+| 2026-11-06 | El detalle de ruta del portal cliente incluye puntos y guías | El mandante necesita ver los puntos y descargar las guías sin salir de `/cliente/servicios`; solo puntos vigentes |
+| 2026-11-06 | `/admin/empresas` y `/api/admin/empresas` restringidos a `superadmin` | Evita que un admin de empresa cree empresas o usuarios admin; la UI oculta el link y la API responde 403 |
+| 2026-11-06 | Puntos offline en IndexedDB + sincronización idempotente por UUID | El chofer puede registrar puntos sin señal; al reconectar se reintenta el mismo `id` y el backend devuelve el punto existente (200) en vez de duplicarlo |
+| 2026-11-06 | Service worker cachea solo el shell de `/chofer` y assets estáticos | Permite abrir el registro sin conexión sin cachear HTML de admin/cliente; los `/api/*` siempre van a red |
+| 2026-11-06 | Ruta activa cacheada en `localStorage` (`rutasnx:viaje-activo`) | Permite renderizar el formulario de puntos offline aunque `/api/viajes/hoy` no responda |
+| 2026-11-06 | Lista de puntos sincronizados cacheada en `localStorage` (`rutasnx:puntos:{viajeId}`) | Offline se conserva el último odómetro y los puntos ya enviados; los pendientes viven en IndexedDB |
+| 2026-11-06 | Suite de pruebas con Vitest para helpers puros | Valida CSV (escape/fórmulas), fechas, RUT y rango del valorizador sin depender de Supabase ni del runtime de Workers |
