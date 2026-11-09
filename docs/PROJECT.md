@@ -65,7 +65,7 @@ rutasnx/
 
 ## Estado
 
-v2.6 implementada; migración aplicada en Supabase y pendiente desplegar en Cloudflare Workers.
+v2.6 implementada, migración aplicada y desplegada en producción (Cloudflare Workers).
 - Rediseño UI completo con estética "Linear dark"
 - Login funcional con auth propia
 - Admin: CRUD completo + asignaciones + dashboard con detalle de rutas + reportes (tabs: Informes, Resumen Diario, Valorizador KM, Puntos y Guías) + valorizador de km con auditoría + usuarios activos + multi-usuario por cliente
