@@ -55,16 +55,17 @@ describe('archivosDesdePunto', () => {
 })
 
 describe('validarArchivosPunto', () => {
-  it('exige al menos un archivo y una imagen', () => {
-    expect(validarArchivosPunto([])).toMatch(/al menos un archivo/)
-    expect(validarArchivosPunto([
-      { url: 'https://x/guias/guia.pdf', nombre: 'Guía', tipo: 'application/pdf' },
-    ])).toMatch(/al menos una imagen/)
+  it('permite evidencia vacía porque los archivos son opcionales', () => {
+    expect(validarArchivosPunto([])).toBeNull()
   })
 
-  it('acepta imagen más documento y rechaza tipos no permitidos', () => {
+  it('acepta imagen más documento, solo documento y rechaza tipos no permitidos', () => {
     expect(validarArchivosPunto([
       { url: 'https://x/guias/foto.jpg', nombre: 'Foto', tipo: 'image/jpeg' },
+      { url: 'https://x/guias/guia.pdf', nombre: 'Guía', tipo: 'application/pdf' },
+    ])).toBeNull()
+
+    expect(validarArchivosPunto([
       { url: 'https://x/guias/guia.pdf', nombre: 'Guía', tipo: 'application/pdf' },
     ])).toBeNull()
 

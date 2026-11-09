@@ -138,13 +138,6 @@ export async function POST(
       return NextResponse.json({ error: errorArchivos }, { status: 400 })
     }
 
-    if (!fotoPrincipal) {
-      return NextResponse.json(
-        { error: 'Debes incluir al menos una imagen de la guía' },
-        { status: 400 }
-      )
-    }
-
     if (!TIPOS_PUNTO.includes(tipo)) {
       return NextResponse.json({ error: 'Tipo de punto inválido' }, { status: 400 })
     }
@@ -204,7 +197,7 @@ export async function POST(
         nombre_punto: nombre,
         nombre_punto_normalizado: normalizeText(nombre),
         km_llegada: km,
-        foto_guia_url: fotoPrincipal,
+        foto_guia_url: fotoPrincipal || '',
         archivos,
         captured_at: captured_at || new Date().toISOString(),
         created_by: session.id,

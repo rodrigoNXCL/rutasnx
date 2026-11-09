@@ -294,11 +294,6 @@ export default function ChoferRegistro() {
       return
     }
 
-    if (!form.fotoKmInicio && !form.fotoKmInicioPreview) {
-      setError('Sube una foto del cuenta kilómetros')
-      return
-    }
-
     setSaving(true)
 
     try {

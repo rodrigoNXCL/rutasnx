@@ -145,8 +145,8 @@ Migraciones SQL en `supabase/migrations/`.
 | nombre_punto | text | NOT NULL |
 | nombre_punto_normalizado | text | NOT NULL |
 | km_llegada | int | NOT NULL (odómetro absoluto) |
-| foto_guia_url | text | NOT NULL |
-| archivos | jsonb | NOT NULL, default '[]'::jsonb (url + nombre + tipo) |
+| foto_guia_url | text | NOT NULL (imagen principal; se conserva por compatibilidad) |
+| archivos | jsonb | NOT NULL, default '[]'::jsonb (url + nombre + tipo; máx. 5 archivos validado en app) |
 | captured_at | timestamptz | NOT NULL, default now() |
 | created_at | timestamptz | default now() |
 | created_by | uuid | FK → usuarios.id, SET NULL |
@@ -156,6 +156,8 @@ Migraciones SQL en `supabase/migrations/`.
 | anulado_at | timestamptz | |
 | anulado_by | uuid | FK → usuarios.id, SET NULL |
 | | | UNIQUE(viaje_id, orden) |
+
+**Regla de no retroceso**: `archivos` no reemplaza a `foto_guia_url`; ambos deben mantenerse. Los informes, el portal y las APIs usan `archivos` y caen a `foto_guia_url` solo si no hay archivos. La evidencia es opcional; si se registra, el máximo es 5 archivos por punto y PDF solo en el bucket `guias`.
 
 #### viaje_punto_historial
 | Columna | Tipo | Constraints |
@@ -171,7 +173,7 @@ Migraciones SQL en `supabase/migrations/`.
 | nombre_punto_normalizado_anterior / nombre_punto_normalizado_nuevo | text | |
 | km_llegada_anterior / km_llegada_nuevo | int | |
 | foto_guia_url_anterior / foto_guia_url_nuevo | text | |
-| archivos_anterior / archivos_nuevo | jsonb | |
+| archivos_anterior / archivos_nuevo | jsonb | Snapshot de archivos antes/después de la corrección |
 | motivo | text | NOT NULL |
 | changed_by | uuid | FK → usuarios.id, SET NULL |
 | changed_at | timestamptz | default now() |

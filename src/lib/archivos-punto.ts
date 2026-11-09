@@ -110,10 +110,6 @@ export function validarTipoArchivo(tipo: string): string | null {
 }
 
 export function validarArchivosPunto(archivos: ArchivoPunto[]): string | null {
-  if (archivos.length === 0) {
-    return 'Debes adjuntar al menos un archivo'
-  }
-
   if (archivos.length > MAX_ARCHIVOS_PUNTO) {
     return `Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`
   }
@@ -121,10 +117,6 @@ export function validarArchivosPunto(archivos: ArchivoPunto[]): string | null {
   for (const archivo of archivos) {
     const errorTipo = validarTipoArchivo(archivo.tipo)
     if (errorTipo) return errorTipo
-  }
-
-  if (!archivos.some((archivo) => esImagen(archivo.tipo))) {
-    return 'Debes incluir al menos una imagen de la guía'
   }
 
   return null

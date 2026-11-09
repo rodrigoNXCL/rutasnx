@@ -95,13 +95,6 @@ export async function PUT(
       return NextResponse.json({ error: errorArchivos }, { status: 400 })
     }
 
-    if (!nuevaFoto) {
-      return NextResponse.json(
-        { error: 'Debes incluir al menos una imagen de la guía' },
-        { status: 400 }
-      )
-    }
-
     if (!Number.isInteger(nuevoKm) || nuevoKm < 0) {
       return NextResponse.json({ error: 'Odómetro de llegada inválido' }, { status: 400 })
     }
@@ -161,7 +154,7 @@ export async function PUT(
         nombre_punto: nuevoNombre,
         nombre_punto_normalizado: normalizeText(nuevoNombre),
         km_llegada: nuevoKm,
-        foto_guia_url: nuevaFoto,
+        foto_guia_url: nuevaFoto || '',
         archivos: archivosNuevos,
         updated_at: new Date().toISOString(),
         updated_by: session.id,

@@ -386,16 +386,15 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
         try {
           const archivosPendiente = archivosDePuntoOffline(pendiente)
 
-          if (archivosPendiente.length === 0) {
-            setSyncError('Un punto pendiente no tiene archivos. Descártalo y vuelve a registrarlo.')
-            break
-          }
+          let subida: ArchivoPunto[] | null = null
 
-          const subida = await subirArchivos(archivosPendiente)
+          if (archivosPendiente.length > 0) {
+            subida = await subirArchivos(archivosPendiente)
 
-          if (!subida) {
-            setSyncError('No se pudieron subir los archivos. El punto quedó guardado en el dispositivo.')
-            break
+            if (!subida) {
+              setSyncError('No se pudieron subir los archivos. El punto quedó guardado en el dispositivo.')
+              break
+            }
           }
 
           const res = await fetchConTimeout(`/api/viajes/${pendiente.viaje_id}/puntos`, {
@@ -406,8 +405,8 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
               tipo: pendiente.tipo,
               nombre_punto: pendiente.nombre_punto,
               km_llegada: pendiente.km_llegada,
-              foto_guia_url: imagenPrincipal(subida) || subida[0].url,
-              archivos: subida,
+              foto_guia_url: subida ? (imagenPrincipal(subida) || '') : '',
+              archivos: subida || [],
               captured_at: pendiente.captured_at,
             }),
           })
@@ -590,18 +589,8 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       return
     }
 
-    if (archivos.length === 0) {
-      setError('Adjunta al menos un archivo de la guía')
-      return
-    }
-
     if (archivos.length > MAX_ARCHIVOS_PUNTO) {
       setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
-      return
-    }
-
-    if (!archivos.some((archivo) => esImagen(archivo.file.type))) {
-      setError('Debes incluir al menos una imagen de la guía')
       return
     }
 
@@ -706,15 +695,6 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       return
     }
 
-    const tieneImagen =
-      editArchivos.some((archivo) => esImagen(archivo.tipo)) ||
-      editNuevos.some((archivo) => esImagen(archivo.file.type))
-
-    if (!tieneImagen) {
-      setError('Debes incluir al menos una imagen de la guía')
-      return
-    }
-
     setSaving(true)
 
     try {
@@ -734,17 +714,13 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       }
 
       const errorArchivos = validarArchivosPunto(archivosFinales)
-      const fotoPrincipal = imagenPrincipal(archivosFinales)
 
       if (errorArchivos) {
         setError(errorArchivos)
         return
       }
 
-      if (!fotoPrincipal) {
-        setError('Debes incluir al menos una imagen de la guía')
-        return
-      }
+      const fotoFinal = imagenPrincipal(archivosFinales) || ''
 
       const res = await fetchConTimeout(`/api/viajes/${viajeId}/puntos/${editando.id}`, {
         method: 'PUT',
@@ -753,7 +729,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
           tipo: editForm.tipo,
           nombre_punto: editForm.nombre_punto,
           km_llegada: kmNumero,
-          foto_guia_url: fotoPrincipal,
+          foto_guia_url: fotoFinal,
           archivos: archivosFinales,
           motivo: motivoEdicion.trim(),
         }),
@@ -1049,7 +1025,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
             className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
           />
           <p className="text-[10px] text-zinc-500 mt-1">
-            Hasta {MAX_ARCHIVOS_PUNTO} archivos, 5 MB cada uno. Incluye al menos una imagen.
+            Hasta {MAX_ARCHIVOS_PUNTO} archivos, 5 MB cada uno. Opcional (guía fotográfica o documento).
           </p>
 
           {archivos.length > 0 && (
@@ -1150,7 +1126,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
                 className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
               />
               <p className="text-[10px] text-zinc-500 mt-1">
-                Hasta {MAX_ARCHIVOS_PUNTO} archivos, 5 MB cada uno. Incluye al menos una imagen.
+                Hasta {MAX_ARCHIVOS_PUNTO} archivos, 5 MB cada uno. Opcional (guía fotográfica o documento).
               </p>
 
               <div className="flex flex-wrap gap-2 mt-2">

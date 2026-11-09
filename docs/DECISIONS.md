@@ -76,13 +76,13 @@
 ### Tipos de Servicio y Flujo por Puntos
 - Catálogo `tipos_servicio` por empresa con `flujo` (`simple` | `puntos`). Seed: `reparto` (simple) y `fruta` (puntos). Gestión en `/admin/tipos-servicio`.
 - `reparto` no se puede eliminar; los tipos en uso se desactivan, no se borran.
-- El flujo `puntos` registra N puntos de tipo `retiro`/`entrega`; cada punto exige nombre, odómetro de llegada absoluto y **foto de guía obligatoria** (bucket `guias`).
+- El flujo `puntos` registra N puntos de tipo `retiro`/`entrega`; cada punto exige nombre y odómetro de llegada absoluto, y la evidencia es **opcional**: si se adjunta, admite hasta 5 imágenes/documentos (JPG/PNG/WEBP/PDF) desde cámara, galería o memoria (bucket `guias`).
 - Autocompletado de puntos por empresa + cliente, normalizado (sin acentos, minúsculas), reutilizando registros previos.
 - El cierre es una acción separada del último punto: `km_termino` obligatorio, puede ser mayor al último punto (ej. regreso), foto de odómetro opcional.
-- Editar o anular puntos exige `motivo`; se conserva foto anterior como archivo nuevo y se audita en `viaje_punto_historial` / `viaje_historial`.
+- Editar o anular puntos exige `motivo`; se audita `archivos_anterior/nuevo` en `viaje_punto_historial` y los cambios de ruta en `viaje_historial`.
 - Anulación lógica (`anulado`), no borrado físico. Anulados no se muestran a chofer/cliente y se excluyen de reportes.
 - Admin/superadmin también pueden editar rutas y puntos, con las mismas reglas de auditoría.
-- Offline previsto: IDs UUID generados en cliente, IndexedDB, compresión JPEG, sincronización idempotente y PWA (pendiente de UI).
+- Offline implementado: IDs UUID generados en cliente, IndexedDB, sincronización idempotente por UUID, timeout de 8 s y PWA con service worker. El registro es local-first: el punto se guarda en el dispositivo, se muestra como "Pendiente" y se sincroniza en segundo plano; incluye reintento manual y descarte. No hay compresión de imágenes en cliente: se valida un máximo de 5 MB por archivo.
 
 ### Informes PDF/CSV
 - Los informes abarcan **solo rutas terminadas** (`viajes.estado = 'terminado'`).
@@ -168,3 +168,6 @@
 | 2026-11-09 | PDF permitido solo en el bucket `guias` | Las guías pueden ser documentos; gastos y odómetros siguen restringidos a imágenes |
 | 2026-11-09 | Registro de puntos local-first con timeout y heurística de red | Evita que el chofer espere una subida colgada en mala señal; el punto se guarda primero en IndexedDB y se sincroniza después |
 | 2026-11-09 | Eliminar la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` (09/11/2026) | Fecha incorrecta; no tenía puntos, gastos ni historial. La asignación, chofer, camión y servicio se mantienen |
+| 2026-11-09 | Los informes, portal, CSV y PDF muestran todos los archivos de `archivos` | El mandante y el admin deben ver imágenes y PDFs, no solo la foto principal; `foto_guia_url` queda como fallback |
+| 2026-11-09 | No eliminar `viaje_puntos.archivos` ni `viaje_punto_historial.archivos_anterior/nuevo` | La migración `20261109` está aplicada y es la fuente de archivos; eliminarlas rompe APIs e informes |
+| 2026-11-09 | El bucket `guias` debe mantener PDF y límite de 5 MB | Las guías pueden ser documentos; la restricción se aplica en `/api/upload` y en `storage.buckets` |

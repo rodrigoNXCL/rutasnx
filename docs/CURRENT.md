@@ -2,7 +2,7 @@
 
 ## Paso Actual del Plan de Desarrollo
 
-**Paso 3** - Funcionalidades core completadas (v2.5)
+**Paso 4** - v2.6 desplegada: puntos multiarchivo, local-first y confiabilidad de sincronización (2026-11-09)
 
 ## Estado General
 
@@ -43,6 +43,32 @@
 - [x] Suite de pruebas automatizadas (Vitest)
 - [x] Puntos con múltiples imágenes/documentos (hasta 5, PDF incluido, cámara/galería)
 - [x] Registro local-first y aviso de conexión lenta en puntos
+
+## Registro de Avance
+
+| Fecha | Hito | Estado | Evidencia |
+|-------|------|--------|-----------|
+| 2026-11-09 | Puntos con hasta 5 imágenes/documentos (JPG/PNG/WEBP/PDF) | Desplegado | Commit `59962d6`; bucket `guias` con PDF |
+| 2026-11-09 | Registro local-first, timeout 8 s, aviso de red lenta, reintento y descarte | Desplegado | Commit `59962d6` |
+| 2026-11-09 | Informes admin/cliente, CSV y PDF muestran todos los archivos | Desplegado | Commit `59962d6` |
+| 2026-11-09 | Migración `20261109_puntos_multiarchivo` aplicada y verificada | Completado | Columnas `archivos` y `archivos_anterior/nuevo`; PDF en `guias` |
+| 2026-11-09 | Ruta incorrecta 09/11/2026 eliminada | Completado | `viaje_id=580a5b1b-456e-4c6f-af10-cf6a0ca7a118`; foto de odómetro eliminada (HTTP 400) |
+| 2026-11-09 | Eliminación del registro de ruta re-creado 09/11/2026 | Completado | `viaje_id=7cdfe962-dd47-4367-80b0-1526a66a25d9`; sin puntos/gastos/historial |
+| 2026-11-09 | Build y despliegue v2.6 en Cloudflare Workers | Completado | Version ID `c71c3c91-244f-4ac6-98d1-f4d2ffe3aca7`; commit docs `d7168fc` |
+| 2026-11-09 | Corrección: evidencia opcional en inicio de ruta y puntos | Validación OK; pendiente rebuild/deploy | Commit en curso (`59962d6` + corrección) |
+| 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
+| 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
+
+## Guardrails (No Retroceder)
+
+- No eliminar `viaje_puntos.archivos` ni `viaje_punto_historial.archivos_anterior/nuevo`: la migración ya está aplicada y las APIs/informes dependen de esas columnas.
+- Mantener `foto_guia_url` como imagen principal y seguir poblándola; es el fallback de compatibilidad para informes, CSV y vistas antiguas.
+- La evidencia es opcional: si se adjunta, el punto admite hasta 5 archivos (JPG/PNG/WEBP/PDF) con máximo 5 MB y PDF solo en el bucket `guias`; si no se adjunta, se guarda sin evidencia. No reintroducir la obligación de adjuntar.
+- Mantener el flujo local-first de puntos: guardar en IndexedDB, mostrar "Pendiente", sincronizar por UUID idempotente, timeout de 8 s y opción "Descartar".
+- Los informes admin/cliente, CSV y PDF deben listar todos los archivos de `archivos`, no solo `foto_guia_url`.
+- No recrear la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` ni la foto `km-fotos/1794222187565-ttwcqkc53ok.jpg`.
+- Mantener `/api/upload` con subida múltiple y el bucket `guias` con `application/pdf` permitido.
+- Antes de desplegar: `npx tsc --noEmit`, `npm test` (21 pruebas) y `npm run build`; para Cloudflare, `npm run build:vinext` y `npm run deploy:prod`.
 
 ## Estructura de Rutas Implementada
 
@@ -99,7 +125,7 @@ Portal cliente: el mandante ve **solo gastos tipo `peaje`** de sus rutas; el res
 ### Flujo por puntos (tipo de servicio `fruta`)
 
 1. **Iniciar ruta** → odómetro inicial + foto (opcional según tipo).
-2. **Registrar puntos** → retiro/entrega con nombre autocompletado, odómetro de llegada y **al menos una imagen de guía obligatoria**; admite hasta 5 imágenes/documentos (incluido PDF) desde cámara, galería o memoria (bucket `guias`).
+2. **Registrar puntos** → retiro/entrega con nombre autocompletado, odómetro de llegada y **evidencia opcional** (hasta 5 imágenes/documentos, incluido PDF, desde cámara, galería o memoria; bucket `guias`).
 3. **Cerrar ruta** → acción separada del último punto: odómetro de término obligatorio (puede superar al último punto), foto de odómetro opcional.
 4. **Correcciones** → editar o anular puntos exige `motivo`; queda registro en `viaje_punto_historial`. Editar la ruta deja registro en `viaje_historial`.
 
@@ -129,7 +155,7 @@ Reglas:
 - `PATCH /api/gastos/[id]` - Edita un gasto (tipo, monto, descripción, foto)
 - `DELETE /api/gastos/[id]` - Elimina un gasto
 - `GET /api/viajes/[id]/puntos` - Lista puntos de una ruta (`incluir_anulados=true` para admin)
-- `POST /api/viajes/[id]/puntos` - Crea un punto (al menos una imagen obligatoria, odómetro validado, hasta 5 archivos en `archivos`; acepta `id` de cliente para reintentos idempotentes y `captured_at`)
+- `POST /api/viajes/[id]/puntos` - Crea un punto (evidencia opcional, odómetro validado, hasta 5 archivos en `archivos`; acepta `id` de cliente para reintentos idempotentes y `captured_at`)
 - `PUT /api/viajes/[id]/puntos/[puntoId]` - Edita un punto (motivo obligatorio, auditoría de `archivos_anterior/nuevo`)
 - `DELETE /api/viajes/[id]/puntos/[puntoId]` - Anula un punto (motivo obligatorio, auditoría)
 - `GET /api/puntos/sugerencias` - Autocompletado de puntos por cliente (normalizado)
@@ -156,18 +182,27 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
+- **Último deploy**: 2026-11-09, Version ID `c71c3c91-244f-4ac6-98d1-f4d2ffe3aca7`
 
-## Último Cambio
+## Historial de Cambios
+
+Los hitos recientes y el estado vigente están en **Registro de Avance** (arriba). Esta sección conserva el detalle de las implementaciones anteriores.
 
 **Fase 1-2 de tipos de servicio y flujo por puntos.** Catálogo `tipos_servicio` por empresa (`reparto` simple / `fruta` puntos), servicios y viajes con snapshot de tipo y cliente, y soporte de múltiples rutas por camión/día (una sola abierta por camión/chofer). Se agregaron puntos de viaje con foto de guía obligatoria, odómetro absoluto, anulación lógica y auditoría (`viaje_punto_historial`, `viaje_historial`), bucket público `guias`, y APIs de puntos/autocompletado. La UI del chofer ya distingue el flujo `puntos`: registra puntos con autocompletado, foto de guía y odómetro; permite corregir/anular con motivo; y el cierre de ruta es una acción separada con odómetro final y foto opcional. `GET /api/viajes/hoy` ahora busca la ruta abierta sin filtrar por fecha (soporte cruce de medianoche) y `GET /api/viajes/fecha` devuelve `viajes[]` manteniendo `viaje` por compatibilidad. **Bug resuelto (2026-11-06)**: el punto no se guardaba porque `PuntosRuta` se renderizaba dentro del formulario de cierre de ruta (formularios HTML anidados), lo que además disparaba `terminarDia` y mostraba un error confuso. Se sacó `PuntosRuta` del formulario de cierre. También el `orden` del nuevo punto se calcula ahora sobre el máximo histórico (incluyendo anulados), evitando colisiones con `UNIQUE(viaje_id, orden)`. Se corrigió `/admin/empresas` (estado `telefono` faltante y `GET` de empresas) y el tipado del filtro `estado` en `/api/admin/viajes`. Además, el admin ahora puede **agregar o quitar acceso al portal desde la edición del cliente**: el acceso se gestiona vía `cliente_usuarios`, se puede revocar el usuario principal (limpiando `clientes.usuario_id`) y al re-agregar un email existente se reactiva y re-vincula la cuenta sin duplicarla. Se agregó el **informe de puntos y guías para el cliente** (`/cliente/informes/puntos`): filtros por rango de fechas, camión y chofer aplicados en la consulta (y opciones en una consulta liviana separada para soportar temporadas con muchos registros); tabla por punto con km inicio, punto, km del punto, km final, total del día y enlace a cada guía; orden por **patente y fecha**; exportación PDF (tabla + apéndice de enlaces clickeables) y CSV; solo rutas cerradas y puntos vigentes, con aviso visible de que las rutas en tránsito no se muestran hasta que el chofer las cierre. En ese momento quedaron pendientes: reportes con puntos y guías en admin, offline/PWA e idempotencia de sincronización, portal cliente con puntos y restringir `/admin/empresas` a superadmin.
 
 **Cierre de pendientes (2026-11-06)**: se agregó el informe de puntos y guías en admin (tab "Puntos y Guías", filtros cliente/servicio/camión/chofer, PDF/CSV), el detalle de puntos y guías en el portal cliente, y se restringió `/admin/empresas` a `superadmin` (API 403 y link oculto). Se implementó PWA + captura offline de puntos con IndexedDB, sincronización idempotente por UUID al reconectar, caché de la ruta activa y aviso de pendientes. Se agregó el índice `idx_viajes_cliente_estado_fecha`, se limpiaron los errores de `tsc` y se incorporó Vitest con pruebas de CSV, fechas, RUT y valorizador. Validación: `npx tsc --noEmit`, `npm test` (13 pruebas) y `npm run build` OK.
 
-**Puntos multiarchivo y conexión lenta (2026-11-09)**: los puntos ahora aceptan hasta 5 imágenes/documentos por registro (JPG, PNG, WEBP y PDF), seleccionables desde cámara, galería o memoria; se mantiene `foto_guia_url` como imagen principal y se agrega `archivos` JSONB con `{url, nombre, tipo}` en `viaje_puntos`, más `archivos_anterior/nuevo` en `viaje_punto_historial`. El bucket `guias` acepta PDF y `/api/upload` sube múltiples archivos en una sola petición. La captura del chofer pasó a un flujo **local-first**: guarda el punto en IndexedDB al instante, muestra badge "Pendiente" y sincroniza en segundo plano; detecta red lenta con `navigator.connection` + timeout de 8 s, avisa que quedó local y permite reintentar o descartar. Los informes admin/cliente, CSV y PDF muestran todos los archivos. Se eliminó la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` (09/11/2026) por fecha incorrecta; no tenía puntos, gastos ni historial, y se borró su foto de odómetro. La migración `supabase/migrations/20261109_puntos_multiarchivo.sql` quedó aplicada en Supabase (columnas `archivos`, historial y PDF en bucket `guias` verificados) y la versión fue desplegada en Cloudflare Workers (`https://nxrutas.devnx-trans.workers.dev`). Validación: `npx tsc --noEmit`, `npm test` (21 pruebas), `npm run build`, `npm run build:vinext` y `npm run deploy:prod` OK.
+**Puntos multiarchivo y conexión lenta (2026-11-09)**: los puntos ahora aceptan hasta 5 imágenes/documentos por registro (JPG, PNG, WEBP y PDF), seleccionables desde cámara, galería o memoria; se mantiene `foto_guia_url` como imagen principal y se agrega `archivos` JSONB con `{url, nombre, tipo}` en `viaje_puntos`, más `archivos_anterior/nuevo` en `viaje_punto_historial`. El bucket `guias` acepta PDF y `/api/upload` sube múltiples archivos en una sola petición. La captura del chofer pasó a un flujo **local-first**: guarda el punto en IndexedDB al instante, muestra badge "Pendiente" y sincroniza en segundo plano; detecta red lenta con `navigator.connection` + timeout de 8 s, avisa que quedó local y permite reintentar o descartar. Los informes admin/cliente, CSV y PDF muestran todos los archivos. Se eliminó la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` (09/11/2026) por fecha incorrecta; no tenía puntos, gastos ni historial, y se borró su foto de odómetro. La migración `supabase/migrations/20261109_puntos_multiarchivo.sql` quedó aplicada en Supabase (columnas `archivos`, historial y PDF en bucket `guias` verificados) y la versión fue desplegada en Cloudflare Workers (`https://nxrutas.devnx-trans.workers.dev`). Validación: `npx tsc --noEmit`, `npm test` (21 pruebas), `npm run build`, `npm run build:vinext` y `npm run deploy:prod` OK. Corrección posterior: la evidencia (fotos/documentos) quedó como **opcional**; iniciar ruta y registrar puntos ya no exigen adjuntar archivo, aunque se mantienen validaciones y límites (máx. 5 archivos, 5 MB, PDF solo en `guias`) cuando se adjunta. Se eliminó el registro de ruta re-creado el 09/11/2026 (`viaje_id=7cdfe962-dd47-4367-80b0-1526a66a25d9`, estado `en_curso`) tras la corrección; ese registro no tenía puntos, gastos ni historial.
 
 Anterior: El **Resumen Diario** quedó integrado dentro de **Reportes** (tabs: Informes / Resumen Diario / Valorizador KM). Nuevo **Valorizador de Kilometraje** (`/admin/valorizador`): el admin asigna un valor por km para un rango de fechas (con validación de solapamiento), queda guardado y se lista en un informe PDF/CSV dentro de Reportes; cada creación/modificación/eliminación queda registrada en `valor_km_historial` (auditoría). El tab **Valorizador KM** muestra el resumen diario **valorizado**: km del día × valor por km aplicable a la fecha, con totalización de la columna valor total. Nuevo soporte **multi-usuario por cliente** (tabla `cliente_usuarios`): se pueden asociar varios logins a un cliente y todos acceden a la info asociada; la gestión se hace desde Clientes → "N usuarios". Los APIs de cliente ahora resuelven el cliente vía `cliente_usuarios`. Informes de rutas terminadas en PDF/CSV para cliente (`/cliente/informes`) y admin (tab Informes). El informe del admin incluye **URLs de imágenes** (km inicio/término y comprobantes) y el **detalle completo de gastos** (todos los tipos); el del cliente solo gastos `peaje`. Las URLs de los respaldos se entregan **acortadas** (`/s/{bucket}/{file}`, redirect al storage) para no ocupar espacio en el PDF/CSV y permitir descargar cada respaldo. Antes del detalle de gastos y evidencias, el PDF muestra un bloque de **totales** (rutas, km recorridos y gastos). Se agrega en admin la **consulta de usuarios activos** (`/admin/usuarios`). Se resuelve toda la deuda de tipos TypeScript (fix del `never` en `types/database.ts` con `Relationships` y esquema real).
 
 Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede editar rutas terminadas (km, observaciones, fotos y CRUD de gastos).
+
+## Pendientes Recomendados (no bloqueantes)
+
+- Prueba runtime en dispositivo real: cámara/galería, 5 archivos, PDF, modo avión y reconexión.
+- Evaluar limpieza periódica de archivos huérfanos en Storage (subidas exitosas cuyo `POST` falló).
+- Evaluar bucket `guias` privado con URLs firmadas; hoy es público para imágenes y PDFs.
 
 ## Bloqueos
 
