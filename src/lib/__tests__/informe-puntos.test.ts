@@ -22,6 +22,10 @@ const filaBase: FilaInforme = {
   km_final: '1.200',
   total_km: 200,
   guia_url: 'https://rutas.nxchile.com/s/guias/guia-1.jpg',
+  archivos: [
+    { url: 'https://rutas.nxchile.com/s/guias/guia-1.jpg', nombre: 'Guía', tipo: 'image/jpeg' },
+    { url: 'https://rutas.nxchile.com/s/guias/guia-2.pdf', nombre: 'Documento', tipo: 'application/pdf' },
+  ],
 }
 
 describe('csvEscape', () => {

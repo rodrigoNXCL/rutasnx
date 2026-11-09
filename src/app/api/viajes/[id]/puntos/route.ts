@@ -3,6 +3,12 @@ import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getViajeAcceso } from '@/lib/viaje-access'
 import { normalizeText } from '@/lib/utils'
+import {
+  MAX_ARCHIVOS_PUNTO,
+  archivosDesdePunto,
+  imagenPrincipal,
+  validarArchivosPunto,
+} from '@/lib/archivos-punto'
 import type { TipoPunto } from '@/types/database'
 
 const TIPOS_PUNTO: TipoPunto[] = ['retiro', 'entrega']
@@ -72,6 +78,7 @@ export async function POST(
       nombre_punto,
       km_llegada,
       foto_guia_url,
+      archivos: archivosBody,
       captured_at,
     } = body
 
@@ -112,12 +119,30 @@ export async function POST(
     const foto = String(foto_guia_url || '').trim()
     const km = Number(km_llegada)
 
+    if (Array.isArray(archivosBody) && archivosBody.length > MAX_ARCHIVOS_PUNTO) {
+      return NextResponse.json(
+        { error: `Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos` },
+        { status: 400 }
+      )
+    }
+
+    const archivos = archivosDesdePunto({ archivos: archivosBody, foto_guia_url: foto })
+    const errorArchivos = validarArchivosPunto(archivos)
+    const fotoPrincipal = imagenPrincipal(archivos)
+
     if (!nombre) {
       return NextResponse.json({ error: 'El nombre del punto es obligatorio' }, { status: 400 })
     }
 
-    if (!foto) {
-      return NextResponse.json({ error: 'La foto de la guía es obligatoria' }, { status: 400 })
+    if (errorArchivos) {
+      return NextResponse.json({ error: errorArchivos }, { status: 400 })
+    }
+
+    if (!fotoPrincipal) {
+      return NextResponse.json(
+        { error: 'Debes incluir al menos una imagen de la guía' },
+        { status: 400 }
+      )
     }
 
     if (!TIPOS_PUNTO.includes(tipo)) {
@@ -179,7 +204,8 @@ export async function POST(
         nombre_punto: nombre,
         nombre_punto_normalizado: normalizeText(nombre),
         km_llegada: km,
-        foto_guia_url: foto,
+        foto_guia_url: fotoPrincipal,
+        archivos,
         captured_at: captured_at || new Date().toISOString(),
         created_by: session.id,
       })

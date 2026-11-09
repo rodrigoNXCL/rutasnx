@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getClienteIdsForUsuario } from '@/lib/cliente'
 import { shortenStorageUrl } from '@/lib/short-url'
+import { archivosDesdePunto } from '@/lib/archivos-punto'
 
 export async function GET(request: Request) {
   try {
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
           choferes (usuarios (nombre)),
           tipos_servicio (flujo),
           gastos (id, tipo, monto, descripcion, foto_url),
-          viaje_puntos (id, orden, tipo, nombre_punto, km_llegada, foto_guia_url, captured_at, anulado)
+          viaje_puntos (id, orden, tipo, nombre_punto, km_llegada, foto_guia_url, archivos, captured_at, anulado)
         )
       `)
       .in('cliente_id', clienteIds)
@@ -67,6 +68,10 @@ export async function GET(request: Request) {
           .map((punto) => ({
             ...punto,
             foto_guia_url: shortenStorageUrl(punto.foto_guia_url, baseUrl),
+            archivos: archivosDesdePunto(punto).map((archivo) => ({
+              ...archivo,
+              url: shortenStorageUrl(archivo.url, baseUrl) || archivo.url,
+            })),
           })),
       })),
     }))

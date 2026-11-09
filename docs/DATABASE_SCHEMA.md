@@ -146,6 +146,7 @@ Migraciones SQL en `supabase/migrations/`.
 | nombre_punto_normalizado | text | NOT NULL |
 | km_llegada | int | NOT NULL (odómetro absoluto) |
 | foto_guia_url | text | NOT NULL |
+| archivos | jsonb | NOT NULL, default '[]'::jsonb (url + nombre + tipo) |
 | captured_at | timestamptz | NOT NULL, default now() |
 | created_at | timestamptz | default now() |
 | created_by | uuid | FK → usuarios.id, SET NULL |
@@ -170,6 +171,7 @@ Migraciones SQL en `supabase/migrations/`.
 | nombre_punto_normalizado_anterior / nombre_punto_normalizado_nuevo | text | |
 | km_llegada_anterior / km_llegada_nuevo | int | |
 | foto_guia_url_anterior / foto_guia_url_nuevo | text | |
+| archivos_anterior / archivos_nuevo | jsonb | |
 | motivo | text | NOT NULL |
 | changed_by | uuid | FK → usuarios.id, SET NULL |
 | changed_at | timestamptz | default now() |
@@ -247,4 +249,4 @@ Implementadas en el SQL de migración para todos los roles.
 
 - Bucket: 'gastos' (privado, 5MB, jpg/png/webp)
 - Bucket: 'km-fotos' (privado, 5MB, jpg/png/webp)
-- Bucket: 'guias' (público, 5MB, jpg/png/webp)
+- Bucket: 'guias' (público, 5MB, jpg/png/webp/pdf; PDF habilitado por migración `20261109_puntos_multiarchivo`)

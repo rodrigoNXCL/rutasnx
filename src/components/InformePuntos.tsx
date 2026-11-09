@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import jsPDF from 'jspdf'
 import autoTable, { type CellHookData } from 'jspdf-autotable'
+import { esImagen } from '@/lib/archivos-punto'
 import {
   RESPUESTA_VACIA,
   buildInformeCsv,
@@ -125,6 +126,7 @@ export default function InformePuntos({
           tipo: '—',
           km_punto: '',
           guia_url: null,
+          archivos: [],
         }]
       }
 
@@ -134,6 +136,7 @@ export default function InformePuntos({
         tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
         km_punto: formatNumber(punto.km),
         guia_url: punto.guia_url,
+        archivos: punto.archivos || [],
       }))
     })
   }
@@ -287,16 +290,23 @@ export default function InformePuntos({
     cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 7
 
     const guias = datos.rutas.flatMap((ruta) =>
-      ruta.puntos
-        .filter((punto) => punto.guia_url)
-        .map((punto) => ({
+      ruta.puntos.flatMap((punto) => {
+        const archivos = (punto.archivos?.length ?? 0) > 0
+          ? punto.archivos
+          : punto.guia_url
+            ? [{ url: punto.guia_url, nombre: 'Guía', tipo: 'image/jpeg' }]
+            : []
+
+        return archivos.map((archivo, index) => ({
           fecha: ruta.fecha,
           camion: ruta.camion,
           cliente: ruta.cliente,
           chofer: ruta.chofer,
           punto: `${punto.orden}. ${punto.nombre}`,
-          url: punto.guia_url as string,
+          nombre: archivo.nombre || `Archivo ${index + 1}`,
+          url: archivo.url,
         }))
+      })
     )
 
     if (guias.length > 0) {
@@ -316,6 +326,7 @@ export default function InformePuntos({
         'Chofer',
         ...(esAdmin ? ['Cliente'] : []),
         'Punto',
+        'Archivo',
         'Enlace de descarga',
       ]
       const enlaceCol = cabeceraGuias.length - 1
@@ -325,15 +336,17 @@ export default function InformePuntos({
             1: { cellWidth: 18 },
             2: { cellWidth: 26 },
             3: { cellWidth: 30 },
-            4: { cellWidth: 55 },
-            5: { cellWidth: 112 },
+            4: { cellWidth: 50 },
+            5: { cellWidth: 30 },
+            6: { cellWidth: 82 },
           }
         : {
             0: { cellWidth: 18 },
             1: { cellWidth: 18 },
             2: { cellWidth: 28 },
-            3: { cellWidth: 60 },
-            4: { cellWidth: 122 },
+            3: { cellWidth: 55 },
+            4: { cellWidth: 30 },
+            5: { cellWidth: 102 },
           }
 
       autoTable(doc, {
@@ -345,6 +358,7 @@ export default function InformePuntos({
           g.chofer,
           ...(esAdmin ? [g.cliente] : []),
           g.punto,
+          g.nombre,
           g.url,
         ]),
         styles: { fontSize: 6.5, cellPadding: 1.4, overflow: 'linebreak' },
@@ -622,7 +636,21 @@ export default function InformePuntos({
                             </td>
                             <td className="px-3 py-2 text-right text-zinc-300">{formatNumber(punto.km)}</td>
                             <td className="px-3 py-2 text-right">
-                              {punto.guia_url ? (
+                              {punto.archivos?.length ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  {punto.archivos.map((archivo, index) => (
+                                    <a
+                                      key={`${archivo.url}-${index}`}
+                                      href={archivo.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-emerald-400 hover:underline"
+                                    >
+                                      {esImagen(archivo.tipo) ? `Imagen ${index + 1}` : `PDF ${index + 1}`}
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : punto.guia_url ? (
                                 <a
                                   href={punto.guia_url}
                                   target="_blank"

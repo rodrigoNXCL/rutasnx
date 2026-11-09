@@ -6,7 +6,8 @@ export interface PuntoOffline {
   nombre_punto: string
   km_llegada: number
   captured_at: string
-  foto: Blob
+  archivos?: File[]
+  foto?: Blob
   created_at: string
 }
 
@@ -69,4 +70,23 @@ export async function eliminarPuntoOffline(id: string): Promise<void> {
 
 export async function contarPuntosOffline(): Promise<number> {
   return transaccion<number>('readonly', (store) => store.count())
+}
+
+export function archivosDePuntoOffline(punto: PuntoOffline): File[] {
+  if (Array.isArray(punto.archivos) && punto.archivos.length > 0) {
+    return punto.archivos
+  }
+
+  if (!punto.foto) return []
+
+  const tipo = punto.foto.type || 'image/jpeg'
+  const extension = tipo === 'application/pdf'
+    ? 'pdf'
+    : tipo === 'image/png'
+      ? 'png'
+      : tipo === 'image/webp'
+        ? 'webp'
+        : 'jpg'
+
+  return [new File([punto.foto], `guia.${extension}`, { type: tipo })]
 }

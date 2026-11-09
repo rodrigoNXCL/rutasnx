@@ -164,3 +164,7 @@
 | 2026-11-06 | Ruta activa cacheada en `localStorage` (`rutasnx:viaje-activo`) | Permite renderizar el formulario de puntos offline aunque `/api/viajes/hoy` no responda |
 | 2026-11-06 | Lista de puntos sincronizados cacheada en `localStorage` (`rutasnx:puntos:{viajeId}`) | Offline se conserva el último odómetro y los puntos ya enviados; los pendientes viven en IndexedDB |
 | 2026-11-06 | Suite de pruebas con Vitest para helpers puros | Valida CSV (escape/fórmulas), fechas, RUT y rango del valorizador sin depender de Supabase ni del runtime de Workers |
+| 2026-11-09 | Puntos multiarchivo en `viaje_puntos.archivos` JSONB, manteniendo `foto_guia_url` como imagen principal | Permite varias imágenes/documentos sin tabla adicional; conserva compatibilidad con informes, CSV y vistas que usan la foto principal |
+| 2026-11-09 | PDF permitido solo en el bucket `guias` | Las guías pueden ser documentos; gastos y odómetros siguen restringidos a imágenes |
+| 2026-11-09 | Registro de puntos local-first con timeout y heurística de red | Evita que el chofer espere una subida colgada en mala señal; el punto se guarda primero en IndexedDB y se sincroniza después |
+| 2026-11-09 | Eliminar la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` (09/11/2026) | Fecha incorrecta; no tenía puntos, gastos ni historial. La asignación, chofer, camión y servicio se mantienen |

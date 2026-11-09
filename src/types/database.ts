@@ -12,6 +12,12 @@ export type EstadoViaje = 'en_curso' | 'terminado'
 export type FlujoServicio = 'simple' | 'puntos'
 export type TipoPunto = 'retiro' | 'entrega'
 export type AccionPuntoHistorial = 'modificado' | 'anulado'
+
+export interface ArchivoPunto {
+  url: string
+  nombre: string
+  tipo: string
+}
 export type AccionViajeHistorial = 'creado' | 'modificado' | 'cerrado'
 
 export interface Database {
@@ -413,6 +419,7 @@ export interface Database {
           nombre_punto_normalizado: string
           km_llegada: number
           foto_guia_url: string
+          archivos: ArchivoPunto[]
           captured_at: string
           created_at: string
           created_by: string | null
@@ -433,6 +440,7 @@ export interface Database {
           nombre_punto_normalizado: string
           km_llegada: number
           foto_guia_url: string
+          archivos?: ArchivoPunto[]
           captured_at?: string
           created_at?: string
           created_by?: string | null
@@ -501,6 +509,8 @@ export interface Database {
           km_llegada_nuevo: number | null
           foto_guia_url_anterior: string | null
           foto_guia_url_nuevo: string | null
+          archivos_anterior: ArchivoPunto[] | null
+          archivos_nuevo: ArchivoPunto[] | null
           motivo: string
           changed_by: string | null
           changed_at: string
@@ -523,6 +533,8 @@ export interface Database {
           km_llegada_nuevo?: number | null
           foto_guia_url_anterior?: string | null
           foto_guia_url_nuevo?: string | null
+          archivos_anterior?: ArchivoPunto[] | null
+          archivos_nuevo?: ArchivoPunto[] | null
           motivo: string
           changed_by?: string | null
           changed_at?: string

@@ -1,3 +1,6 @@
+import { archivosCsv } from '@/lib/archivos-punto'
+import type { ArchivoPunto } from '@/types/database'
+
 export interface PuntoInforme {
   id: string
   orden: number
@@ -5,6 +8,7 @@ export interface PuntoInforme {
   nombre: string
   km: number
   guia_url: string | null
+  archivos: ArchivoPunto[]
   captured_at: string
 }
 
@@ -65,6 +69,7 @@ export interface FilaInforme {
   km_final: string
   total_km: number
   guia_url: string | null
+  archivos: ArchivoPunto[]
 }
 
 export const RESPUESTA_VACIA: InformeRespuesta = {
@@ -149,6 +154,7 @@ export function buildInformeCsv({
     'Km Final',
     'Total Km Día',
     'Guía (URL)',
+    'Archivos (URLs)',
   ]
 
   const meta = [
@@ -173,6 +179,7 @@ export function buildInformeCsv({
     fila.km_final,
     String(fila.total_km),
     fila.guia_url || '',
+    archivosCsv(fila.archivos),
   ])
 
   return [

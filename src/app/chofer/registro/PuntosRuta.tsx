@@ -1,11 +1,23 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
+  archivosDePuntoOffline,
   eliminarPuntoOffline,
   guardarPuntoOffline,
   listarPuntosOffline,
+  type PuntoOffline,
 } from '@/lib/offline-queue'
+import {
+  MAX_ARCHIVOS_PUNTO,
+  archivoDesdeFile,
+  archivosDesdePunto,
+  esImagen,
+  imagenPrincipal,
+  validarArchivoLocal,
+  validarArchivosPunto,
+} from '@/lib/archivos-punto'
+import type { ArchivoPunto } from '@/types/database'
 
 interface Punto {
   id: string
@@ -14,18 +26,29 @@ interface Punto {
   nombre_punto: string
   km_llegada: number
   foto_guia_url: string
+  archivos: ArchivoPunto[]
   captured_at: string
   pendiente?: boolean
 }
 
+interface ArchivoLocal {
+  file: File
+  previewUrl: string
+}
+
 const PUNTOS_CACHE_PREFIX = 'rutasnx:puntos:'
+const UPLOAD_TIMEOUT_MS = 8000
 
 function leerPuntosCache(viajeId: string): Punto[] {
   try {
     const raw = localStorage.getItem(`${PUNTOS_CACHE_PREFIX}${viajeId}`)
     if (!raw) return []
     const data = JSON.parse(raw)
-    return Array.isArray(data) ? (data as Punto[]) : []
+    if (!Array.isArray(data)) return []
+    return (data as Punto[]).map((punto) => ({
+      ...punto,
+      archivos: archivosDesdePunto(punto),
+    }))
   } catch {
     return []
   }
@@ -36,6 +59,65 @@ function guardarPuntosCache(viajeId: string, puntos: Punto[]): void {
     localStorage.setItem(`${PUNTOS_CACHE_PREFIX}${viajeId}`, JSON.stringify(puntos))
   } catch {
     // localStorage no disponible o lleno
+  }
+}
+
+interface NetworkInformationLike {
+  effectiveType?: string
+  rtt?: number
+  downlink?: number
+  saveData?: boolean
+}
+
+function conexionLenta(): boolean {
+  if (typeof navigator === 'undefined') return false
+  if (!navigator.onLine) return true
+
+  const connection = (navigator as Navigator & { connection?: NetworkInformationLike }).connection
+  if (!connection) return false
+
+  if (connection.saveData) return true
+  if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') return true
+  if (typeof connection.rtt === 'number' && connection.rtt > 1500) return true
+  if (typeof connection.downlink === 'number' && connection.downlink > 0 && connection.downlink < 0.5) return true
+
+  return false
+}
+
+function suscribirConexion(callback: () => void) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+function leerConexion() {
+  return typeof navigator === 'undefined' ? true : navigator.onLine
+}
+
+function leerConexionServidor() {
+  return true
+}
+
+function useOnline(): boolean {
+  return useSyncExternalStore(suscribirConexion, leerConexion, leerConexionServidor)
+}
+
+async function fetchConTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  ms = UPLOAD_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -50,7 +132,6 @@ interface EdicionForm {
   tipo: 'retiro' | 'entrega'
   nombre_punto: string
   km_llegada: string
-  foto_guia_url: string
 }
 
 export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion = false }: PuntosRutaProps) {
@@ -59,15 +140,16 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [syncError, setSyncError] = useState('')
   const [success, setSuccess] = useState('')
   const [pendientes, setPendientes] = useState(0)
   const [sincronizando, setSincronizando] = useState(false)
+  const online = useOnline()
 
   const [tipo, setTipo] = useState<'retiro' | 'entrega'>('entrega')
   const [nombre, setNombre] = useState('')
   const [km, setKm] = useState('')
-  const [foto, setFoto] = useState<File | null>(null)
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  const [archivos, setArchivos] = useState<ArchivoLocal[]>([])
   const [sugerencias, setSugerencias] = useState<string[]>([])
 
   const [editando, setEditando] = useState<Punto | null>(null)
@@ -75,10 +157,9 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
     tipo: 'entrega',
     nombre_punto: '',
     km_llegada: '',
-    foto_guia_url: '',
   })
-  const [editFoto, setEditFoto] = useState<File | null>(null)
-  const [editFotoPreview, setEditFotoPreview] = useState<string | null>(null)
+  const [editArchivos, setEditArchivos] = useState<ArchivoPunto[]>([])
+  const [editNuevos, setEditNuevos] = useState<ArchivoLocal[]>([])
   const [motivoEdicion, setMotivoEdicion] = useState('')
 
   const [anulando, setAnulando] = useState<Punto | null>(null)
@@ -87,6 +168,8 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
   const previewsPendientes = useRef<string[]>([])
   const cargandoRef = useRef(false)
   const recargarRef = useRef(false)
+  const sincronizandoRef = useRef(false)
+  const resincronizarRef = useRef(false)
 
   const ultimoKm = puntos.length > 0 ? puntos[puntos.length - 1].km_llegada : kmInicio
 
@@ -109,10 +192,13 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
 
     try {
       try {
-        const res = await fetch(`/api/viajes/${viajeId}/puntos`)
+        const res = await fetchConTimeout(`/api/viajes/${viajeId}/puntos`, {}, 5000)
         if (res.ok) {
           const data = await res.json()
-          puntosServidor = data.puntos || []
+          puntosServidor = (data.puntos || []).map((punto: Punto) => ({
+            ...punto,
+            archivos: archivosDesdePunto(punto),
+          }))
           guardarPuntosCache(viajeId, puntosServidor)
         } else {
           puntosServidor = leerPuntosCache(viajeId)
@@ -130,8 +216,12 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
         puntosPendientes = pendientesLocales
           .filter((punto) => punto.viaje_id === viajeId && !idsServidor.has(punto.id))
           .map((punto, index) => {
-            const previewUrl = URL.createObjectURL(punto.foto)
-            previewsPendientes.current.push(previewUrl)
+            const archivosOffline = archivosDePuntoOffline(punto)
+            const archivosPreview = archivosOffline.map((file) => {
+              const previewUrl = URL.createObjectURL(file)
+              previewsPendientes.current.push(previewUrl)
+              return archivoDesdeFile(file, previewUrl)
+            })
 
             return {
               id: punto.id,
@@ -139,7 +229,8 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
               tipo: punto.tipo,
               nombre_punto: punto.nombre_punto,
               km_llegada: punto.km_llegada,
-              foto_guia_url: previewUrl,
+              foto_guia_url: imagenPrincipal(archivosPreview) || archivosPreview[0]?.url || '',
+              archivos: archivosPreview,
               captured_at: punto.captured_at,
               pendiente: true,
             }
@@ -184,7 +275,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
 
   useEffect(() => {
     function alRecuperarConexion() {
-      sincronizarPendientes()
+      void sincronizarPendientes()
     }
 
     window.addEventListener('online', alRecuperarConexion)
@@ -219,27 +310,40 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
 
   function limpiarMensajes() {
     setError('')
+    setSyncError('')
     setSuccess('')
   }
 
-  async function uploadBlob(blob: Blob, nombreArchivo: string): Promise<string | null> {
+  async function subirArchivos(files: File[]): Promise<ArchivoPunto[] | null> {
+    if (files.length === 0) return null
+
     const formData = new FormData()
-    formData.append('file', new File([blob], nombreArchivo, { type: blob.type || 'image/jpeg' }))
+    for (const file of files) {
+      formData.append('files', file)
+    }
     formData.append('bucket', 'guias')
 
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    })
+    try {
+      const res = await fetchConTimeout('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-    if (!res.ok) return null
+      if (!res.ok) return null
 
-    const data = await res.json()
-    return data.url
-  }
+      const data = await res.json()
+      const urls: string[] = Array.isArray(data.urls)
+        ? data.urls
+        : data.url
+          ? [data.url]
+          : []
 
-  async function uploadFoto(file: File): Promise<string | null> {
-    return uploadBlob(file, file.name || 'guia.jpg')
+      if (urls.length !== files.length) return null
+
+      return files.map((file, index) => archivoDesdeFile(file, urls[index]))
+    } catch {
+      return null
+    }
   }
 
   async function actualizarPendientes() {
@@ -254,7 +358,12 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
   async function sincronizarPendientes() {
     if (typeof navigator !== 'undefined' && !navigator.onLine) return
 
-    let pendientesLocales
+    if (sincronizandoRef.current) {
+      resincronizarRef.current = true
+      return
+    }
+
+    let pendientesLocales: PuntoOffline[]
     try {
       const todos = await listarPuntosOffline()
       pendientesLocales = todos.filter((punto) => punto.viaje_id === viajeId)
@@ -267,73 +376,196 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       return
     }
 
+    sincronizandoRef.current = true
     setSincronizando(true)
+    setSyncError('')
     let sincronizados = 0
 
-    for (const pendiente of pendientesLocales) {
-      try {
-        const fotoUrl = await uploadBlob(pendiente.foto, `guia-${pendiente.id}.jpg`)
-        if (!fotoUrl) break
+    try {
+      for (const pendiente of pendientesLocales) {
+        try {
+          const archivosPendiente = archivosDePuntoOffline(pendiente)
 
-        const res = await fetch(`/api/viajes/${pendiente.viaje_id}/puntos`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: pendiente.id,
-            tipo: pendiente.tipo,
-            nombre_punto: pendiente.nombre_punto,
-            km_llegada: pendiente.km_llegada,
-            foto_guia_url: fotoUrl,
-            captured_at: pendiente.captured_at,
-          }),
-        })
+          if (archivosPendiente.length === 0) {
+            setSyncError('Un punto pendiente no tiene archivos. Descártalo y vuelve a registrarlo.')
+            break
+          }
 
-        if (res.status === 409) {
+          const subida = await subirArchivos(archivosPendiente)
+
+          if (!subida) {
+            setSyncError('No se pudieron subir los archivos. El punto quedó guardado en el dispositivo.')
+            break
+          }
+
+          const res = await fetchConTimeout(`/api/viajes/${pendiente.viaje_id}/puntos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: pendiente.id,
+              tipo: pendiente.tipo,
+              nombre_punto: pendiente.nombre_punto,
+              km_llegada: pendiente.km_llegada,
+              foto_guia_url: imagenPrincipal(subida) || subida[0].url,
+              archivos: subida,
+              captured_at: pendiente.captured_at,
+            }),
+          })
+
+          if (res.status === 409) {
+            await eliminarPuntoOffline(pendiente.id)
+            continue
+          }
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            setSyncError(data.error || 'No se pudo enviar el punto. Quedó pendiente para reintentar.')
+            break
+          }
+
           await eliminarPuntoOffline(pendiente.id)
-          continue
+          sincronizados++
+        } catch {
+          setSyncError('Conexión lenta o interrumpida. El punto quedó guardado en el dispositivo.')
+          break
         }
-
-        if (!res.ok) break
-
-        await eliminarPuntoOffline(pendiente.id)
-        sincronizados++
-      } catch {
-        break
       }
-    }
 
-    await actualizarPendientes()
-    setSincronizando(false)
+      await actualizarPendientes()
+    } finally {
+      sincronizandoRef.current = false
+      setSincronizando(false)
+    }
 
     if (sincronizados > 0) {
       setSuccess(`${sincronizados} punto${sincronizados !== 1 ? 's' : ''} sincronizado${sincronizados !== 1 ? 's' : ''}`)
       await cargarPuntos()
       setTimeout(() => setSuccess(''), 4000)
     }
+
+    if (resincronizarRef.current) {
+      resincronizarRef.current = false
+      void sincronizarPendientes()
+    }
   }
 
-  function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  function handleArchivosChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const seleccionados = Array.from(e.target.files || [])
+    e.target.value = ''
 
-    if (!file) return
+    if (seleccionados.length === 0) return
 
-    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    limpiarMensajes()
 
-    setFoto(file)
-    setFotoPreview(URL.createObjectURL(file))
-  }
+    const disponibles = MAX_ARCHIVOS_PUNTO - archivos.length
 
-  function handleEditFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-
-    if (!file) return
-
-    if (editFotoPreview && editFotoPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(editFotoPreview)
+    if (disponibles <= 0) {
+      setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
+      return
     }
 
-    setEditFoto(file)
-    setEditFotoPreview(URL.createObjectURL(file))
+    const nuevos: ArchivoLocal[] = []
+    let errorArchivo = ''
+
+    for (const file of seleccionados.slice(0, disponibles)) {
+      const errorValidacion = validarArchivoLocal(file)
+      if (errorValidacion) {
+        errorArchivo = `${file.name}: ${errorValidacion}`
+        continue
+      }
+      nuevos.push({ file, previewUrl: URL.createObjectURL(file) })
+    }
+
+    if (nuevos.length > 0) {
+      setArchivos((prev) => [...prev, ...nuevos])
+    }
+
+    if (errorArchivo) {
+      setError(errorArchivo)
+    } else if (seleccionados.length > disponibles) {
+      setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
+    }
+  }
+
+  function quitarArchivo(index: number) {
+    setArchivos((prev) => {
+      const archivo = prev[index]
+      if (archivo) URL.revokeObjectURL(archivo.previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  function handleEditArchivosChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const seleccionados = Array.from(e.target.files || [])
+    e.target.value = ''
+
+    if (seleccionados.length === 0) return
+
+    limpiarMensajes()
+
+    const disponibles = MAX_ARCHIVOS_PUNTO - editArchivos.length - editNuevos.length
+
+    if (disponibles <= 0) {
+      setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
+      return
+    }
+
+    const nuevos: ArchivoLocal[] = []
+    let errorArchivo = ''
+
+    for (const file of seleccionados.slice(0, disponibles)) {
+      const errorValidacion = validarArchivoLocal(file)
+      if (errorValidacion) {
+        errorArchivo = `${file.name}: ${errorValidacion}`
+        continue
+      }
+      nuevos.push({ file, previewUrl: URL.createObjectURL(file) })
+    }
+
+    if (nuevos.length > 0) {
+      setEditNuevos((prev) => [...prev, ...nuevos])
+    }
+
+    if (errorArchivo) {
+      setError(errorArchivo)
+    } else if (seleccionados.length > disponibles) {
+      setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
+    }
+  }
+
+  function quitarEditArchivo(index: number) {
+    setEditArchivos((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function quitarEditNuevo(index: number) {
+    setEditNuevos((prev) => {
+      const archivo = prev[index]
+      if (archivo) URL.revokeObjectURL(archivo.previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  function abrirEdicion(punto: Punto) {
+    limpiarMensajes()
+    setEditando(punto)
+    setEditForm({
+      tipo: punto.tipo,
+      nombre_punto: punto.nombre_punto,
+      km_llegada: String(punto.km_llegada),
+    })
+    setEditArchivos(archivosDesdePunto(punto))
+    setEditNuevos([])
+    setMotivoEdicion('')
+  }
+
+  function cerrarEdicion() {
+    for (const archivo of editNuevos) {
+      URL.revokeObjectURL(archivo.previewUrl)
+    }
+    setEditando(null)
+    setEditArchivos([])
+    setEditNuevos([])
+    setMotivoEdicion('')
   }
 
   async function agregarPunto(e: React.FormEvent) {
@@ -358,15 +590,38 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       return
     }
 
-    if (!foto) {
-      setError('La foto de la guía es obligatoria')
+    if (archivos.length === 0) {
+      setError('Adjunta al menos un archivo de la guía')
+      return
+    }
+
+    if (archivos.length > MAX_ARCHIVOS_PUNTO) {
+      setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
+      return
+    }
+
+    if (!archivos.some((archivo) => esImagen(archivo.file.type))) {
+      setError('Debes incluir al menos una imagen de la guía')
+      return
+    }
+
+    const errorArchivo = archivos
+      .map((archivo) => validarArchivoLocal(archivo.file))
+      .find(Boolean)
+
+    if (errorArchivo) {
+      setError(errorArchivo)
       return
     }
 
     const puntoId = crypto.randomUUID()
     const capturedAt = new Date().toISOString()
-    const fotoArchivo = foto
-    const puntoLocal = {
+    const archivosPunto = archivos.map((archivo) =>
+      archivoDesdeFile(archivo.file, archivo.previewUrl)
+    )
+    const fotoPrincipal = imagenPrincipal(archivosPunto) || archivosPunto[0]?.url || ''
+
+    const puntoLocal: PuntoOffline = {
       id: puntoId,
       viaje_id: viajeId,
       cliente_id: clienteId,
@@ -374,133 +629,57 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       nombre_punto: nombreLimpio,
       km_llegada: kmNumero,
       captured_at: capturedAt,
-      foto: fotoArchivo,
+      archivos: archivos.map((archivo) => archivo.file),
       created_at: capturedAt,
-    }
-
-    async function guardarOffline(
-      mensaje = 'Punto guardado sin conexión. Se enviará al reconectar.'
-    ) {
-      try {
-        await guardarPuntoOffline(puntoLocal)
-        await actualizarPendientes()
-
-        const previewUrl = URL.createObjectURL(fotoArchivo)
-        previewsPendientes.current.push(previewUrl)
-        setPuntos((prev) => [
-          ...prev,
-          {
-            id: puntoId,
-            orden: (prev[prev.length - 1]?.orden ?? 0) + 1,
-            tipo,
-            nombre_punto: nombreLimpio,
-            km_llegada: kmNumero,
-            foto_guia_url: previewUrl,
-            captured_at: capturedAt,
-            pendiente: true,
-          },
-        ])
-
-        if (fotoPreview) URL.revokeObjectURL(fotoPreview)
-
-        setNombre('')
-        setKm('')
-        setFoto(null)
-        setFotoPreview(null)
-        setSugerencias([])
-        setSuccess(mensaje)
-        setTimeout(() => setSuccess(''), 5000)
-      } catch {
-        setError('No se pudo guardar el punto sin conexión')
-      }
     }
 
     setSaving(true)
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      await guardarOffline()
-      setSaving(false)
-      return
-    }
-
     try {
-      setUploading(true)
-      const fotoUrl = await uploadFoto(foto)
-      setUploading(false)
+      await guardarPuntoOffline(puntoLocal)
 
-      if (!fotoUrl) {
-        await guardarOffline(
-          'No se pudo subir la foto. El punto quedó pendiente para reintentar.'
-        )
-        return
+      for (const archivo of archivos) {
+        previewsPendientes.current.push(archivo.previewUrl)
       }
 
-      const res = await fetch(`/api/viajes/${viajeId}/puntos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      setPuntos((prev) => [
+        ...prev,
+        {
           id: puntoId,
+          orden: (prev[prev.length - 1]?.orden ?? 0) + 1,
           tipo,
           nombre_punto: nombreLimpio,
           km_llegada: kmNumero,
-          foto_guia_url: fotoUrl,
+          foto_guia_url: fotoPrincipal,
+          archivos: archivosPunto,
           captured_at: capturedAt,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        if (res.status >= 500 || res.status === 401 || res.status === 403) {
-          await guardarOffline(
-            'No se pudo enviar el punto. Quedó pendiente para reintentar.'
-          )
-          return
-        }
-        setError(data.error || 'Error al registrar el punto')
-        return
-      }
-
-      if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+          pendiente: true,
+        },
+      ])
 
       setNombre('')
       setKm('')
-      setFoto(null)
-      setFotoPreview(null)
+      setArchivos([])
       setSugerencias([])
-      setSuccess('Punto registrado')
-      await cargarPuntos()
+      await actualizarPendientes()
 
-      setTimeout(() => setSuccess(''), 4000)
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setSuccess('Sin conexión: el punto quedó guardado en el dispositivo. Se enviará al reconectar.')
+      } else {
+        setSuccess(
+          conexionLenta()
+            ? 'Conexión lenta: el punto quedó guardado. Sincronizando en segundo plano...'
+            : 'Punto guardado. Sincronizando...'
+        )
+        void sincronizarPendientes()
+      }
+
+      setTimeout(() => setSuccess(''), 6000)
     } catch {
-      await guardarOffline()
+      setError('No se pudo guardar el punto en el dispositivo')
     } finally {
       setSaving(false)
-      setUploading(false)
     }
-  }
-
-  function abrirEdicion(punto: Punto) {
-    limpiarMensajes()
-    setEditando(punto)
-    setEditForm({
-      tipo: punto.tipo,
-      nombre_punto: punto.nombre_punto,
-      km_llegada: String(punto.km_llegada),
-      foto_guia_url: punto.foto_guia_url,
-    })
-    setEditFoto(null)
-    setEditFotoPreview(punto.foto_guia_url)
-    setMotivoEdicion('')
-  }
-
-  function cerrarEdicion() {
-    if (editFotoPreview && editFotoPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(editFotoPreview)
-    }
-    setEditando(null)
-    setEditFoto(null)
-    setEditFotoPreview(null)
-    setMotivoEdicion('')
   }
 
   async function guardarEdicion(e: React.FormEvent) {
@@ -522,38 +701,66 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       return
     }
 
+    if (editArchivos.length + editNuevos.length > MAX_ARCHIVOS_PUNTO) {
+      setError(`Puedes adjuntar máximo ${MAX_ARCHIVOS_PUNTO} archivos`)
+      return
+    }
+
+    const tieneImagen =
+      editArchivos.some((archivo) => esImagen(archivo.tipo)) ||
+      editNuevos.some((archivo) => esImagen(archivo.file.type))
+
+    if (!tieneImagen) {
+      setError('Debes incluir al menos una imagen de la guía')
+      return
+    }
+
     setSaving(true)
 
     try {
-      let fotoUrl = editForm.foto_guia_url
+      const archivosFinales = [...editArchivos]
 
-      if (editFoto) {
+      if (editNuevos.length > 0) {
         setUploading(true)
-        const nuevaFoto = await uploadFoto(editFoto)
+        const subida = await subirArchivos(editNuevos.map((archivo) => archivo.file))
         setUploading(false)
 
-        if (!nuevaFoto) {
-          setError('Error subiendo la nueva foto de la guía')
+        if (!subida) {
+          setError('No se pudieron subir los archivos. Revisa la conexión e intenta nuevamente.')
           return
         }
 
-        fotoUrl = nuevaFoto
+        archivosFinales.push(...subida)
       }
 
-      const res = await fetch(`/api/viajes/${viajeId}/puntos/${editando.id}`, {
+      const errorArchivos = validarArchivosPunto(archivosFinales)
+      const fotoPrincipal = imagenPrincipal(archivosFinales)
+
+      if (errorArchivos) {
+        setError(errorArchivos)
+        return
+      }
+
+      if (!fotoPrincipal) {
+        setError('Debes incluir al menos una imagen de la guía')
+        return
+      }
+
+      const res = await fetchConTimeout(`/api/viajes/${viajeId}/puntos/${editando.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tipo: editForm.tipo,
           nombre_punto: editForm.nombre_punto,
           km_llegada: kmNumero,
-          foto_guia_url: fotoUrl,
+          foto_guia_url: fotoPrincipal,
+          archivos: archivosFinales,
           motivo: motivoEdicion.trim(),
         }),
       })
 
       if (!res.ok) {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         setError(data.error || 'Error al corregir el punto')
         return
       }
@@ -586,11 +793,11 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
     setSaving(true)
 
     try {
-      const res = await fetch(`/api/viajes/${viajeId}/puntos/${anulando.id}`, {
+      const res = await fetchConTimeout(`/api/viajes/${viajeId}/puntos/${anulando.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ motivo: motivoAnulacion.trim() }),
-      })
+      }, 10000)
 
       if (!res.ok) {
         const data = await res.json()
@@ -611,6 +818,27 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
     }
   }
 
+  async function descartarPendiente(punto: Punto) {
+    if (!window.confirm('¿Descartar este punto pendiente? No se enviará al servidor.')) return
+
+    try {
+      await eliminarPuntoOffline(punto.id)
+
+      for (const archivo of punto.archivos) {
+        if (archivo.url.startsWith('blob:')) {
+          URL.revokeObjectURL(archivo.url)
+        }
+      }
+
+      setPuntos((prev) => prev.filter((item) => item.id !== punto.id))
+      await actualizarPendientes()
+      setSuccess('Punto pendiente descartado')
+      setTimeout(() => setSuccess(''), 4000)
+    } catch {
+      setError('No se pudo descartar el punto pendiente')
+    }
+  }
+
   return (
     <div className="rounded-xl p-5 border space-y-4" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
       <div className="flex items-center justify-between">
@@ -622,6 +850,17 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
           {puntos.length}
         </span>
       </div>
+
+      {!online && (
+        <div
+          className="p-3 rounded-lg border"
+          style={{ background: '#1C1A0D', borderColor: '#5D5220' }}
+        >
+          <p className="text-xs text-amber-300">
+            Sin conexión: los puntos se guardarán en el dispositivo y se enviarán al reconectar.
+          </p>
+        </div>
+      )}
 
       {pendientes > 0 && (
         <div
@@ -640,6 +879,12 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
           >
             {sincronizando ? 'Sincronizando...' : 'Sincronizar'}
           </button>
+        </div>
+      )}
+
+      {syncError && (
+        <div className="p-3 rounded-lg border" style={{ background: '#2D1515', borderColor: '#5D2020' }}>
+          <p className="text-xs text-red-400">{syncError}</p>
         </div>
       )}
 
@@ -663,37 +908,68 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
         <div className="space-y-2">
           {puntos.map((punto) => (
             <div key={punto.id} className="rounded-lg p-3 border" style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
-                  <span className="text-xs font-medium text-zinc-500 mt-0.5">{punto.orden}</span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm text-white truncate">{punto.nombre_punto}</p>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        punto.tipo === 'retiro'
-                          ? 'bg-sky-500/20 text-sky-400'
-                          : 'bg-amber-500/20 text-amber-400'
-                      }`}>
-                        {punto.tipo}
+              <div className="flex items-start gap-3 min-w-0">
+                <span className="text-xs font-medium text-zinc-500 mt-0.5">{punto.orden}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm text-white truncate">{punto.nombre_punto}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                      punto.tipo === 'retiro'
+                        ? 'bg-sky-500/20 text-sky-400'
+                        : 'bg-amber-500/20 text-amber-400'
+                    }`}>
+                      {punto.tipo}
+                    </span>
+                    {punto.pendiente && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400">
+                        Pendiente
                       </span>
-                      {punto.pendiente && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400">
-                          Pendiente
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {punto.km_llegada.toLocaleString('es-CL')} km
-                    </p>
+                    )}
                   </div>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {punto.km_llegada.toLocaleString('es-CL')} km
+                  </p>
                 </div>
-
-                <a href={punto.foto_guia_url} target="_blank" rel="noreferrer" className="shrink-0">
-                  <img src={punto.foto_guia_url} alt="Guía" className="w-12 h-12 rounded-lg object-cover" />
-                </a>
               </div>
 
-              {!punto.pendiente && (
+              {punto.archivos.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {punto.archivos.map((archivo, index) => (
+                    <a
+                      key={`${archivo.url}-${index}`}
+                      href={archivo.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0"
+                      title={archivo.nombre}
+                    >
+                      {esImagen(archivo.tipo) ? (
+                        <img
+                          src={archivo.url}
+                          alt={archivo.nombre}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <span className="flex w-12 h-12 items-center justify-center rounded-lg bg-red-500/15 text-[10px] font-medium text-red-300">
+                          PDF
+                        </span>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {punto.pendiente ? (
+                <div className="flex gap-4 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => descartarPendiente(punto)}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Descartar
+                  </button>
+                </div>
+              ) : (
                 <div className="flex gap-4 mt-3">
                   <button
                     type="button"
@@ -764,25 +1040,59 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
         </datalist>
 
         <div>
+          <label className="block text-xs text-zinc-500 mb-1">Guía y documentos</label>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
-            capture="environment"
-            onChange={handleFotoChange}
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            multiple
+            onChange={handleArchivosChange}
             className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
           />
-          {fotoPreview && (
-            <img src={fotoPreview} alt="Preview guía" className="mt-2 rounded-lg max-h-32 object-cover" />
+          <p className="text-[10px] text-zinc-500 mt-1">
+            Hasta {MAX_ARCHIVOS_PUNTO} archivos, 5 MB cada uno. Incluye al menos una imagen.
+          </p>
+
+          {archivos.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {archivos.map((archivo, index) => (
+                <div key={archivo.previewUrl} className="relative">
+                  {esImagen(archivo.file.type) ? (
+                    <img
+                      src={archivo.previewUrl}
+                      alt={archivo.file.name}
+                      className="w-16 h-16 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <a
+                      href={archivo.previewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex w-16 h-16 items-center justify-center rounded-lg bg-red-500/15 text-[10px] font-medium text-red-300"
+                    >
+                      PDF
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => quitarArchivo(index)}
+                    className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-700 text-xs text-white"
+                    aria-label={`Quitar ${archivo.file.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
         <button
           type="submit"
-          disabled={saving || uploading}
+          disabled={saving}
           className="w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50"
           style={{ background: '#10B981' }}
         >
-          {saving ? (uploading ? 'Subiendo...' : 'Guardando...') : 'Agregar punto'}
+          {saving ? 'Guardando...' : 'Agregar punto'}
         </button>
       </form>
       )}
@@ -831,17 +1141,77 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
             />
 
             <div>
-              <label className="block text-xs text-zinc-500 mb-1">Foto de guía</label>
+              <label className="block text-xs text-zinc-500 mb-1">Guía y documentos</label>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
-                onChange={handleEditFotoChange}
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                multiple
+                onChange={handleEditArchivosChange}
                 className="w-full text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-zinc-800 file:text-zinc-300"
               />
-              {editFotoPreview && (
-                <img src={editFotoPreview} alt="Preview guía" className="mt-2 rounded-lg max-h-24 object-cover" />
-              )}
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Hasta {MAX_ARCHIVOS_PUNTO} archivos, 5 MB cada uno. Incluye al menos una imagen.
+              </p>
+
+              <div className="flex flex-wrap gap-2 mt-2">
+                {editArchivos.map((archivo, index) => (
+                  <div key={`${archivo.url}-${index}`} className="relative">
+                    {esImagen(archivo.tipo) ? (
+                      <img
+                        src={archivo.url}
+                        alt={archivo.nombre}
+                        className="w-16 h-16 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <a
+                        href={archivo.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex w-16 h-16 items-center justify-center rounded-lg bg-red-500/15 text-[10px] font-medium text-red-300"
+                      >
+                        PDF
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => quitarEditArchivo(index)}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-700 text-xs text-white"
+                      aria-label={`Quitar ${archivo.nombre}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                {editNuevos.map((archivo, index) => (
+                  <div key={archivo.previewUrl} className="relative">
+                    {esImagen(archivo.file.type) ? (
+                      <img
+                        src={archivo.previewUrl}
+                        alt={archivo.file.name}
+                        className="w-16 h-16 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <a
+                        href={archivo.previewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex w-16 h-16 items-center justify-center rounded-lg bg-red-500/15 text-[10px] font-medium text-red-300"
+                      >
+                        PDF
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => quitarEditNuevo(index)}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-700 text-xs text-white"
+                      aria-label={`Quitar ${archivo.file.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>

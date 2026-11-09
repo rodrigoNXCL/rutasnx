@@ -65,11 +65,12 @@ rutasnx/
 
 ## Estado
 
-v2.5 implementada y desplegada en producción (Cloudflare Workers).
+v2.6 implementada; migración aplicada en Supabase y pendiente desplegar en Cloudflare Workers.
 - Rediseño UI completo con estética "Linear dark"
 - Login funcional con auth propia
 - Admin: CRUD completo + asignaciones + dashboard con detalle de rutas + reportes (tabs: Informes, Resumen Diario, Valorizador KM, Puntos y Guías) + valorizador de km con auditoría + usuarios activos + multi-usuario por cliente
-- Chofer: registro de viajes con gastos y fotos; flujo por puntos (retiro/entrega con foto de guía obligatoria) con captura offline y sincronización idempotente
+- Chofer: registro de viajes con gastos y fotos; flujo por puntos (retiro/entrega con al menos una imagen de guía y hasta 5 imágenes/documentos, incluido PDF) con captura local-first y sincronización idempotente
+- Puntos: guardado inmediato en IndexedDB, aviso de conexión lenta, timeout de subida y reintento/descarte de pendientes
 - Cliente: portal con sus servicios y rutas (kilómetros, gastos, puntos y guías en detalle) + informes PDF/CSV + resumen diario + informe de puntos y guías
 - Informes: solo rutas terminadas; el cliente solo gastos `peaje`, el admin todos los gastos y URLs de imágenes
 - Valorizador KM: valor por km en rangos de fecha, con historial de auditoría e informe valorizado (km × valor)

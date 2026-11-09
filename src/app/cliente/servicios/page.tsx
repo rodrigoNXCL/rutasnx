@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { esImagen } from '@/lib/archivos-punto'
+import type { ArchivoPunto } from '@/types/database'
 
 interface Gasto {
   id: string
@@ -34,6 +36,7 @@ interface Punto {
   nombre_punto: string
   km_llegada: number
   foto_guia_url: string | null
+  archivos: ArchivoPunto[]
   captured_at: string
 }
 
@@ -309,7 +312,21 @@ export default function ClienteServicios() {
                                                   {punto.km_llegada.toLocaleString('es-CL')}
                                                 </td>
                                                 <td className="px-3 py-2 text-right">
-                                                  {punto.foto_guia_url ? (
+                                                  {punto.archivos?.length ? (
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      {punto.archivos.map((archivo, index) => (
+                                                        <a
+                                                          key={`${archivo.url}-${index}`}
+                                                          href={archivo.url}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          className="text-xs text-emerald-400 hover:underline"
+                                                        >
+                                                          {esImagen(archivo.tipo) ? `Imagen ${index + 1}` : `PDF ${index + 1}`}
+                                                        </a>
+                                                      ))}
+                                                    </div>
+                                                  ) : punto.foto_guia_url ? (
                                                     <a
                                                       href={punto.foto_guia_url}
                                                       target="_blank"

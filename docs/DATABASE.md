@@ -25,6 +25,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - [x] Índice `idx_viajes_cliente_estado_fecha` aplicado (migración `20261106_informe_puntos_index`)
 - [x] Empresa RCC creada (RCC Servicios EIRL)
 - [x] Usuario superadmin creado (1 usuario activo verificado)
+- [x] Migración `20261109_puntos_multiarchivo` aplicada en Supabase (incluye PDF en bucket `guias`)
 
 ## Migraciones
 
@@ -35,6 +36,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - `supabase/migrations/20261105_fase1_tipos_servicio_multiruta.sql` - Tipos de servicio por empresa + soporte de múltiples rutas por camión/día
 - `supabase/migrations/20261106_fase2_viaje_puntos.sql` - Puntos de viaje, historial de auditoría y bucket de guías
 - `supabase/migrations/20261106_informe_puntos_index.sql` - Índice compuesto para informes de puntos por cliente/estado/fecha
+- `supabase/migrations/20261109_puntos_multiarchivo.sql` - Multiarchivo por punto (`archivos` JSONB) y auditoría de archivos en historial; permite PDF en bucket `guias`
 
 ## Backups
 
