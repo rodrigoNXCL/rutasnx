@@ -754,8 +754,7 @@ export default function ChoferRegistro() {
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileKmInicioChange}
-                  className="w-full text-sm text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 transition-colors"
-                  required
+                  className="w-full text-sm text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border:0 file:text-sm file:font-medium file:bg-zinc-800 file:text-zinc-300 hover:file:bg-zinc-700 transition-colors"
                 />
                 {form.fotoKmInicioPreview && (
                   <img src={form.fotoKmInicioPreview} alt="Preview" className="mt-3 rounded-lg max-h-40 object-cover" />
