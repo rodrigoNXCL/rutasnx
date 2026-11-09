@@ -84,4 +84,4 @@ v2.6 implementada, migración aplicada y desplegada en producción (Cloudflare W
 - Guardrails de avance en `CURRENT.md` (sección "Guardrails (No Retroceder)")
 - Repo: https://github.com/rodrigoNXCL/rutasnx
 - URL: https://nxrutas.devnx-trans.workers.dev
-- Último deploy: 2026-11-09, Version ID `b6dc8ea4-8218-45c7-a068-4d45ceaef47f`
+- Último deploy: 2026-11-09, Version ID `66679f46-7144-47c7-beb5-2a4dc3f9181e`
