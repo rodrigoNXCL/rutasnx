@@ -136,42 +136,44 @@ export default function ChoferRegistro() {
 
   async function fetchAsignaciones() {
     try {
-      const asigRes = await fetch('/api/chofer/asignacion')
-      if (asigRes.ok) {
-        const data = await asigRes.json()
-        setAsignaciones(data)
-        if (data && data.length > 0) {
-          setAsignacion(data[0])
+      try {
+        const asigRes = await fetch('/api/chofer/asignacion')
+        if (asigRes.ok) {
+          const data = await asigRes.json()
+          setAsignaciones(data)
+          if (data && data.length > 0) {
+            setAsignacion(data[0])
+          }
         }
+      } catch (error) {
+        console.error('Error cargando asignaciones:', error)
       }
-    } catch (error) {
-      console.error('Error cargando asignaciones:', error)
-    }
 
-    try {
-      const viajeRes = await fetch('/api/viajes/hoy')
-      if (viajeRes.ok) {
-        const data = await viajeRes.json()
-        if (data.viaje) {
-          aplicarViaje(data.viaje)
-          guardarViajeCache(data.viaje)
-        } else {
-          setViajeActual(null)
-          guardarViajeCache(null)
+      try {
+        const viajeRes = await fetch('/api/viajes/hoy')
+        if (viajeRes.ok) {
+          const data = await viajeRes.json()
+          if (data.viaje) {
+            aplicarViaje(data.viaje)
+            guardarViajeCache(data.viaje)
+          } else {
+            setViajeActual(null)
+            guardarViajeCache(null)
+          }
+          return
         }
-        return
+      } catch (error) {
+        console.error('Error cargando viaje:', error)
       }
-    } catch (error) {
-      console.error('Error cargando viaje:', error)
-    }
 
-    try {
-      const cache = localStorage.getItem('rutasnx:viaje-activo')
-      if (cache) {
-        aplicarViaje(JSON.parse(cache) as Viaje)
+      try {
+        const cache = localStorage.getItem('rutasnx:viaje-activo')
+        if (cache) {
+          aplicarViaje(JSON.parse(cache) as Viaje)
+        }
+      } catch {
+        // sin caché disponible
       }
-    } catch {
-      // sin caché disponible
     } finally {
       setLoading(false)
     }
