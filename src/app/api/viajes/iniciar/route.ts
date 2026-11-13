@@ -49,6 +49,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Camión no encontrado' }, { status: 404 })
     }
 
+    const { data: asignacionActiva } = await supabase
+      .from('asignaciones')
+      .select('id')
+      .eq('chofer_id', chofer.id)
+      .eq('camion_id', camion_id)
+      .eq('activo', true)
+      .maybeSingle()
+
+    if (!asignacionActiva) {
+      return NextResponse.json(
+        { error: 'El camión no está asignado al chófer' },
+        { status: 400 }
+      )
+    }
+
     let servicio: {
       id: string
       cliente_id: string

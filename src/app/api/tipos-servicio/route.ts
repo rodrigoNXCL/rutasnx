@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAdmin, requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { FlujoServicio } from '@/types/database'
 
@@ -14,7 +14,7 @@ function normalizarCodigo(value: unknown): string {
 
 export async function GET() {
   try {
-    const session = await requireAdmin()
+    const session = await requireRole(['admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
 
     const [tiposRes, serviciosRes] = await Promise.all([

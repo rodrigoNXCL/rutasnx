@@ -82,7 +82,7 @@
 - Editar o anular puntos exige `motivo`; se audita `archivos_anterior/nuevo` en `viaje_punto_historial` y los cambios de ruta en `viaje_historial`.
 - Anulación lógica (`anulado`), no borrado físico. Anulados no se muestran a chofer/cliente y se excluyen de reportes.
 - Admin/superadmin también pueden editar rutas y puntos, con las mismas reglas de auditoría.
-- Offline implementado: IDs UUID generados en cliente, IndexedDB, sincronización idempotente por UUID, timeout de 8 s y PWA con service worker. El registro es local-first: el punto se guarda en el dispositivo, se muestra como "Pendiente" y se sincroniza en segundo plano; incluye reintento manual y descarte. No hay compresión de imágenes en cliente: se valida un máximo de 5 MB por archivo.
+- Offline implementado: IDs UUID generados en cliente, IndexedDB, sincronización idempotente por UUID, timeout de subida de archivos de 20 s (sincronización de punto de 8 s) y PWA con service worker. El registro es local-first: el punto se guarda en el dispositivo, se muestra como "Pendiente" y se sincroniza en segundo plano; incluye reintento manual y descarte. No hay compresión de imágenes en cliente: se valida un máximo de 5 MB por archivo.
 
 ### Informes PDF/CSV
 - Los informes abarcan **solo rutas terminadas** (`viajes.estado = 'terminado'`).
@@ -122,9 +122,14 @@
   2. Admin **desactiva** la asignación vieja (badge "Activo" → "Inactivo"). Queda como historial.
 - **Los informes y el resumen diario no se afectan**: filtran por `empresa_id` + rango de fechas + estado, **no por camión** (el filtro por camión es opcional). Un mes con rutas de dos camiones distintos se agrega automáticamente en totales, detalle y valorización; el detalle muestra la patente de cada viaje para identificar el camión.
 
+### Subadmin (solo lectura, por camión)
+- Rol `subadmin` dentro de una empresa; el admin le asigna camiones en `subadmin_camiones`.
+- Accede a `/admin/dashboard`, `/admin/rutas` y `/admin/reportes`; no a gestión (camiones, choferes, clientes, servicios, asignaciones, usuarios, valorizador, empresas, tipos de servicio).
+- Las APIs de lectura (`stats`, `viajes`, `informes`, `informes/puntos`, `resumen-diario`) filtran por los camiones asignados al subadmin.
+
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
-- `/admin/*` → admin, superadmin
+- `/admin/*` → admin, superadmin y subadmin (subrutas de gestión solo admin/superadmin)
 - `/chofer/*` → solo chofer
 - `/cliente/*` → solo cliente
 - `/auth/login` → público
@@ -171,3 +176,5 @@
 | 2026-11-09 | Los informes, portal, CSV y PDF muestran todos los archivos de `archivos` | El mandante y el admin deben ver imágenes y PDFs, no solo la foto principal; `foto_guia_url` queda como fallback |
 | 2026-11-09 | No eliminar `viaje_puntos.archivos` ni `viaje_punto_historial.archivos_anterior/nuevo` | La migración `20261109` está aplicada y es la fuente de archivos; eliminarlas rompe APIs e informes |
 | 2026-11-09 | El bucket `guias` debe mantener PDF y límite de 5 MB | Las guías pueden ser documentos; la restricción se aplica en `/api/upload` y en `storage.buckets` |
+| 2026-11-10 | Subadmin por empresa con alcance por camiones asignados (`subadmin_camiones`) | Permite delegar rutas/reportes sin exponer gestión ni datos de otros camiones |
+| 2026-11-10 | El chofer selecciona el camión al iniciar (múltiples asignaciones activas) y el servidor valida la asignación | Hay días en que el chofer sale en otro camión; se evita iniciar con camiones no asignados |

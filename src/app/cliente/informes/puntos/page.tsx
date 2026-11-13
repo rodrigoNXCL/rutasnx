@@ -7,12 +7,6 @@ export default function ClienteInformePuntos() {
     <div className="min-h-screen" style={{ background: '#0D0D0D' }}>
       <div className="max-w-6xl mx-auto px-6 py-10">
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          <a
-            href="/cliente/informes"
-            className="px-3 py-1.5 rounded-lg text-sm text-zinc-400 border border-zinc-800 hover:text-white transition-colors"
-          >
-            Rutas y gastos
-          </a>
           <span
             className="px-3 py-1.5 rounded-lg text-sm text-white border border-emerald-500/40"
             style={{ background: '#10B981' }}

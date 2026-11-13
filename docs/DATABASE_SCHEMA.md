@@ -27,11 +27,21 @@ Migraciones SQL en `supabase/migrations/`.
 | email | text | UNIQUE, NOT NULL |
 | password_hash | text | NOT NULL |
 | nombre | text | NOT NULL |
-| rol | text | NOT NULL, CHECK IN ('superadmin','admin','chofer','cliente') |
+| rol | text | NOT NULL, CHECK IN ('superadmin','admin','subadmin','chofer','cliente') |
 | telefono | text | |
 | activo | boolean | default true |
 | ultimo_login | timestamptz | |
 | created_at | timestamptz | default now() |
+
+#### subadmin_camiones
+| Columna | Tipo | Constraints |
+|---------|------|-------------|
+| id | uuid | PK |
+| empresa_id | uuid | FK → empresas.id, NOT NULL |
+| subadmin_id | uuid | FK → usuarios.id, NOT NULL |
+| camion_id | uuid | FK → camiones.id, NOT NULL |
+| created_at | timestamptz | default now() |
+| | | UNIQUE(subadmin_id, camion_id) |
 
 #### choferes
 | Columna | Tipo | Constraints |

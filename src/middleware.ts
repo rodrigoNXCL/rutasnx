@@ -11,7 +11,18 @@ type RouteConfig = {
 
 const ROUTE_CONFIGS: Record<string, RouteConfig> = {
   '/superadmin': { roles: ['superadmin'] },
-  '/admin': { roles: ['admin', 'superadmin'] },
+  // Gestión de la empresa: solo admin/superadmin
+  '/admin/camiones': { roles: ['admin', 'superadmin'] },
+  '/admin/choferes': { roles: ['admin', 'superadmin'] },
+  '/admin/clientes': { roles: ['admin', 'superadmin'] },
+  '/admin/servicios': { roles: ['admin', 'superadmin'] },
+  '/admin/asignaciones': { roles: ['admin', 'superadmin'] },
+  '/admin/usuarios': { roles: ['admin', 'superadmin'] },
+  '/admin/valorizador': { roles: ['admin', 'superadmin'] },
+  '/admin/empresas': { roles: ['superadmin'] },
+  '/admin/tipos-servicio': { roles: ['admin', 'superadmin'] },
+  // Dashboard, rutas y reportes: admin, superadmin y subadmin (filtrado por camiones)
+  '/admin': { roles: ['admin', 'superadmin', 'subadmin'] },
   '/chofer': { roles: ['chofer'] },
   '/cliente': { roles: ['cliente'] },
   '/auth/login': { roles: [] },
@@ -32,6 +43,8 @@ function getDashboardForRole(rol: Rol): string {
     case 'superadmin':
       return '/superadmin/dashboard'
     case 'admin':
+      return '/admin/dashboard'
+    case 'subadmin':
       return '/admin/dashboard'
     case 'chofer':
       return '/chofer/registro'

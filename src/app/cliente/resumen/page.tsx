@@ -7,7 +7,6 @@ import autoTable from 'jspdf-autotable'
 interface DiaResumen {
   fecha: string
   total_km: number
-  peaje: number
 }
 
 function todayChile(): string {
@@ -22,10 +21,6 @@ function toChileanDate(dateStr: string): string {
     year: 'numeric',
     timeZone: 'America/Santiago',
   })
-}
-
-function formatCLP(monto: number): string {
-  return '$' + monto.toLocaleString('es-CL')
 }
 
 export default function ClienteResumenDiario() {
@@ -65,20 +60,18 @@ export default function ClienteResumenDiario() {
     if (dias.length === 0) return
     setDescargando('csv')
     const sep = ';'
-    const encabezados = ['Fecha', 'Kilómetros', 'Peajes']
+    const encabezados = ['Fecha', 'Kilómetros']
     const rows = dias.map((d) => [
       d.fecha,
       String(d.total_km),
-      String(d.peaje),
     ])
     const csv = [
-      `Resumen Diario,${desde},${hasta}`,
+      `Resumen Diario,${desde}-${hasta}`,
       '',
       encabezados.join(sep),
-      ...rows.map((row) => row.join(sep)),
+      ...rows.map((r) => r.join(sep)),
       '',
       `Total km,${dias.reduce((s, d) => s + d.total_km, 0)}`,
-      `Total peajes,${dias.reduce((s, d) => s + d.peaje, 0)}`,
     ].join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -110,11 +103,10 @@ export default function ClienteResumenDiario() {
 
     autoTable(doc, {
       startY: 30,
-      head: [['Fecha', 'Kilómetros', 'Peajes']],
+      head: [['Fecha', 'Kilómetros']],
       body: dias.map((d) => [
         d.fecha,
         `${d.total_km.toLocaleString('es-CL')} km`,
-        formatCLP(d.peaje),
       ]),
       styles: { fontSize: 9, cellPadding: 3 },
       headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
@@ -123,7 +115,6 @@ export default function ClienteResumenDiario() {
     })
 
     const totalKm = dias.reduce((s, d) => s + d.total_km, 0)
-    const totalPeaje = dias.reduce((s, d) => s + d.peaje, 0)
 
     const cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8
 
@@ -133,7 +124,6 @@ export default function ClienteResumenDiario() {
       body: [
         ['Días con rutas', String(dias.length)],
         ['Total km', `${totalKm.toLocaleString('es-CL')} km`],
-        ['Total peajes', formatCLP(totalPeaje)],
       ],
       styles: { fontSize: 9, cellPadding: 2.5 },
       headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
@@ -233,16 +223,15 @@ export default function ClienteResumenDiario() {
             </div>
 
             <div className="rounded-xl border overflow-hidden" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
-              <div className="hidden md:grid grid-cols-[1fr_1fr_1fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
+              <div className="hidden md:grid grid-cols-[1fr_1fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
                 <span>Fecha</span>
                 <span>Kilómetros</span>
-                <span>Peajes</span>
               </div>
 
               {dias.map((d) => (
                 <div
                   key={d.fecha}
-                  className="grid grid-cols-2 md:grid-cols-[1fr_1fr_1fr] gap-2 md:gap-4 px-5 py-3.5 border-b border-zinc-800 last:border-b-0 items-center"
+                  className="grid grid-cols-2 md:grid-cols-[1fr_1fr] gap-2 md:gap-4 px-5 py-3.5 border-b border-zinc-800 last:border-b-0 items-center"
                 >
                   <div>
                     <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Fecha</span>
@@ -251,10 +240,6 @@ export default function ClienteResumenDiario() {
                   <div>
                     <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Km</span>
                     <span className="text-sm font-medium text-emerald-400">{d.total_km.toLocaleString('es-CL')} km</span>
-                  </div>
-                  <div>
-                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Peajes</span>
-                    <span className="text-sm text-zinc-400">{d.peaje > 0 ? formatCLP(d.peaje) : '—'}</span>
                   </div>
                 </div>
               ))}
@@ -265,9 +250,6 @@ export default function ClienteResumenDiario() {
                 </span>
                 <span className="text-sm font-medium text-white">
                   Km: {dias.reduce((s, d) => s + d.total_km, 0).toLocaleString('es-CL')}
-                </span>
-                <span className="text-sm font-medium text-white">
-                  Peajes: {formatCLP(dias.reduce((s, d) => s + d.peaje, 0))}
                 </span>
               </div>
             </div>

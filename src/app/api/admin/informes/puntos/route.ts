@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { shortenStorageUrl } from '@/lib/short-url'
 import { archivosDesdePunto } from '@/lib/archivos-punto'
+import { getCamionesSubadmin } from '@/lib/subadmin'
 
 interface Opcion {
   id: string
@@ -18,7 +19,10 @@ interface CamionOpcion {
 export async function GET(request: Request) {
   try {
     const session = await getSession()
-    if (!session || (session.rol !== 'admin' && session.rol !== 'superadmin')) {
+    if (
+      !session ||
+      (session.rol !== 'admin' && session.rol !== 'superadmin' && session.rol !== 'subadmin')
+    ) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
@@ -55,6 +59,15 @@ export async function GET(request: Request) {
       .split('T')[0]
 
     const supabase = createAdminClient()
+    const camionesSubadmin = await getCamionesSubadmin(supabase, session)
+
+    if (camionesSubadmin !== null && camionesSubadmin.length === 0) {
+      return NextResponse.json({
+        rutas: [],
+        opciones: { camiones: [], choferes: [], clientes: [], servicios: [] },
+        resumen: { rutas: 0, puntos: 0, total_km: 0 },
+      })
+    }
 
     let viajesQuery = supabase
       .from('viajes')
@@ -89,26 +102,36 @@ export async function GET(request: Request) {
     if (camionId) viajesQuery = viajesQuery.eq('camion_id', camionId)
     if (choferId) viajesQuery = viajesQuery.eq('chofer_id', choferId)
 
+    if (camionesSubadmin !== null) {
+      viajesQuery = viajesQuery.in('camion_id', camionesSubadmin)
+    }
+
+    let opcionesQuery = supabase
+      .from('viajes')
+      .select(`
+        camion_id,
+        chofer_id,
+        cliente_id,
+        servicio_id,
+        camiones (id, patente, marca),
+        choferes (id, nombre),
+        clientes (id, nombre),
+        servicios (id, nombre),
+        tipos_servicio!inner (flujo)
+      `)
+      .eq('empresa_id', session.empresa_id)
+      .eq('estado', 'terminado')
+      .eq('tipos_servicio.flujo', 'puntos')
+      .gte('fecha', utcDesde)
+      .lte('fecha', utcHasta)
+
+    if (camionesSubadmin !== null) {
+      opcionesQuery = opcionesQuery.in('camion_id', camionesSubadmin)
+    }
+
     const [{ data: viajes, error }, { data: opcionesViajes }] = await Promise.all([
       viajesQuery,
-      supabase
-        .from('viajes')
-        .select(`
-          camion_id,
-          chofer_id,
-          cliente_id,
-          servicio_id,
-          camiones (id, patente, marca),
-          choferes (id, nombre),
-          clientes (id, nombre),
-          servicios (id, nombre),
-          tipos_servicio!inner (flujo)
-        `)
-        .eq('empresa_id', session.empresa_id)
-        .eq('estado', 'terminado')
-        .eq('tipos_servicio.flujo', 'puntos')
-        .gte('fecha', utcDesde)
-        .lte('fecha', utcHasta),
+      opcionesQuery,
     ])
 
     if (error) {

@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Rol = 'superadmin' | 'admin' | 'chofer' | 'cliente'
+export type Rol = 'superadmin' | 'admin' | 'subadmin' | 'chofer' | 'cliente'
 export type TipoGasto = 'combustible' | 'peaje' | 'comida' | 'mecanico' | 'otro'
 export type EstadoViaje = 'en_curso' | 'terminado'
 export type FlujoServicio = 'simple' | 'puntos'
@@ -751,6 +751,43 @@ export interface Database {
             foreignKeyName: 'valor_km_historial_changed_by_fkey'
             columns: ['changed_by']
             referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      subadmin_camiones: {
+        Row: {
+          id: string
+          empresa_id: string
+          subadmin_id: string
+          camion_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          empresa_id: string
+          subadmin_id: string
+          camion_id: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['subadmin_camiones']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'subadmin_camiones_empresa_id_fkey'
+            columns: ['empresa_id']
+            referencedRelation: 'empresas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'subadmin_camiones_subadmin_id_fkey'
+            columns: ['subadmin_id']
+            referencedRelation: 'usuarios'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'subadmin_camiones_camion_id_fkey'
+            columns: ['camion_id']
+            referencedRelation: 'camiones'
             referencedColumns: ['id']
           }
         ]

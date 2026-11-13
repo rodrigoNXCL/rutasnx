@@ -38,6 +38,7 @@ interface ArchivoLocal {
 
 const PUNTOS_CACHE_PREFIX = 'rutasnx:puntos:'
 const UPLOAD_TIMEOUT_MS = 8000
+const UPLOAD_ARCHIVOS_TIMEOUT_MS = 20000
 
 function leerPuntosCache(viajeId: string): Punto[] {
   try {
@@ -327,7 +328,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       const res = await fetchConTimeout('/api/upload', {
         method: 'POST',
         body: formData,
-      })
+      }, UPLOAD_ARCHIVOS_TIMEOUT_MS)
 
       if (!res.ok) return null
 

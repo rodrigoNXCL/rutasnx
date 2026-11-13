@@ -158,6 +158,10 @@ export async function requireAdmin(): Promise<SesionUsuario> {
   return requireRole(['admin', 'superadmin'])
 }
 
+export async function requireAdminOrSubadmin(): Promise<SesionUsuario> {
+  return requireRole(['admin', 'superadmin', 'subadmin'])
+}
+
 export async function requireChofer(): Promise<SesionUsuario> {
   return requireRole(['chofer'])
 }

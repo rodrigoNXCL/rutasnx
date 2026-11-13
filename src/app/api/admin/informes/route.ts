@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAdminOrSubadmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { shortenStorageUrl } from '@/lib/short-url'
+import { getCamionesSubadmin } from '@/lib/subadmin'
 
 export async function GET(request: Request) {
   try {
-    const session = await requireAdmin()
+    const session = await requireAdminOrSubadmin()
     const supabase = createAdminClient()
+
+    const camionesSubadmin = await getCamionesSubadmin(supabase, session)
+
+    if (camionesSubadmin !== null && camionesSubadmin.length === 0) {
+      return NextResponse.json([])
+    }
 
     const { searchParams } = new URL(request.url)
     const desde = searchParams.get('desde')
@@ -59,6 +66,10 @@ export async function GET(request: Request) {
     if (servicioId) query = query.eq('servicio_id', servicioId)
     if (choferId) query = query.eq('chofer_id', choferId)
     if (camionId) query = query.eq('camion_id', camionId)
+
+    if (camionesSubadmin !== null) {
+      query = query.in('camion_id', camionesSubadmin)
+    }
 
     const { data: viajes, error } = await query
 

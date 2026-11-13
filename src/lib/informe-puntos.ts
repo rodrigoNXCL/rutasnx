@@ -69,6 +69,7 @@ export interface FilaInforme {
   km_final: string
   total_km: number
   guia_url: string | null
+  guia_label?: string
   archivos: ArchivoPunto[]
 }
 

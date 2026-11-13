@@ -4,14 +4,6 @@ import { useState, useEffect } from 'react'
 import { esImagen } from '@/lib/archivos-punto'
 import type { ArchivoPunto } from '@/types/database'
 
-interface Gasto {
-  id: string
-  tipo: string
-  monto: number
-  descripcion: string | null
-  foto_url: string | null
-}
-
 interface Viaje {
   id: string
   fecha: string
@@ -25,7 +17,6 @@ interface Viaje {
   camiones: { patente: string; marca: string | null } | null
   choferes: { usuarios: { nombre: string } | null } | null
   tipos_servicio: { flujo: 'simple' | 'puntos' } | null
-  gastos: Gasto[]
   viaje_puntos: Punto[]
 }
 
@@ -49,14 +40,6 @@ interface Servicio {
   activo: boolean
   created_at: string
   viajes: Viaje[]
-}
-
-const TIPO_GASTO_LABEL: Record<string, string> = {
-  combustible: 'Combustible',
-  peaje: 'Peaje',
-  comida: 'Comida',
-  mecanico: 'Mecánico',
-  otro: 'Otro',
 }
 
 export default function ClienteServicios() {
@@ -106,17 +89,9 @@ export default function ClienteServicios() {
     })
   }
 
-  function formatCLP(monto: number): string {
-    return '$' + monto.toLocaleString('es-CL')
-  }
-
   function totalKm(viaje: Viaje): number | null {
     if (viaje.km_termino == null) return null
     return viaje.km_termino - viaje.km_inicio
-  }
-
-  function totalGastos(viaje: Viaje): number {
-    return (viaje.gastos || []).reduce((sum, g) => sum + g.monto, 0)
   }
 
   function nombreChofer(viaje: Viaje): string {
@@ -186,18 +161,16 @@ export default function ClienteServicios() {
                       <p className="text-xs text-zinc-500 text-center py-8">Sin rutas registradas</p>
                     ) : (
                       <div>
-                        <div className="hidden md:grid grid-cols-[1.2fr_1fr_1fr_1.2fr_1fr_1fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
+                        <div className="hidden md:grid grid-cols-[1.2fr_1fr_1fr_1.2fr_1fr] gap-4 px-5 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide border-b border-zinc-800">
                           <span>Fecha</span>
                           <span>Camion</span>
                           <span>Chofer</span>
                           <span>Km inicio / termino</span>
                           <span>Total km</span>
-                          <span>Total gastos</span>
                         </div>
 
                         {servicio.viajes.map((viaje) => {
                           const km = totalKm(viaje)
-                          const gastos = totalGastos(viaje)
                           const abierto = !!viajesAbiertos[viaje.id]
                           return (
                             <div key={viaje.id} className="border-b border-zinc-800 last:border-b-0">
@@ -213,7 +186,7 @@ export default function ClienteServicios() {
                                     {viaje.estado === 'en_curso' ? 'En curso' : 'Cerrado'}
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-[1.2fr_1fr_1fr_1.2fr_1fr_1fr] gap-2 md:gap-4 items-center">
+                                <div className="grid grid-cols-2 md:grid-cols-[1.2fr_1fr_1fr_1.2fr_1fr] gap-2 md:gap-4 items-center">
                                   <div>
                                     <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Fecha</span>
                                     <span className="hidden md:block text-sm font-medium text-white">{formatFecha(viaje.fecha)}</span>
@@ -240,10 +213,6 @@ export default function ClienteServicios() {
                                     <span className={`text-sm font-medium ${km != null ? 'text-emerald-400' : 'text-amber-400'}`}>
                                       {km != null ? `+${km.toLocaleString('es-CL')}` : 'En curso'}
                                     </span>
-                                  </div>
-                                  <div>
-                                    <span className="md:hidden text-[10px] uppercase text-zinc-600 mr-1">Gastos</span>
-                                    <span className="text-sm text-zinc-400">{gastos > 0 ? formatCLP(gastos) : '—'}</span>
                                   </div>
                                 </div>
                               </button>
@@ -347,37 +316,6 @@ export default function ClienteServicios() {
                                     </div>
                                   )}
 
-                                  {viaje.gastos.length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-3">
-                                        Gastos ({formatCLP(gastos)})
-                                      </p>
-                                      <div className="grid gap-2">
-                                        {viaje.gastos.map((gasto) => (
-                                          <div key={gasto.id} className="rounded-lg p-3 flex items-center justify-between gap-4" style={{ background: '#1A1A1A' }}>
-                                            <div className="min-w-0">
-                                              <p className="text-sm text-white">{TIPO_GASTO_LABEL[gasto.tipo] || gasto.tipo}</p>
-                                              {gasto.descripcion && (
-                                                <p className="text-xs text-zinc-500 truncate">{gasto.descripcion}</p>
-                                              )}
-                                            </div>
-                                            <div className="flex items-center gap-3 shrink-0">
-                                              <span className="text-sm font-medium text-white">{formatCLP(gasto.monto)}</span>
-                                              {gasto.foto_url && (
-                                                <a href={gasto.foto_url} target="_blank" rel="noopener noreferrer">
-                                                  <img
-                                                    src={gasto.foto_url}
-                                                    alt="Comprobante"
-                                                    className="w-10 h-10 rounded-md object-cover border border-zinc-800"
-                                                  />
-                                                </a>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>

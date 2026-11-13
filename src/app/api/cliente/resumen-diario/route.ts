@@ -55,8 +55,7 @@ export async function GET(request: Request) {
         id,
         fecha,
         km_inicio,
-        km_termino,
-        gastos (tipo, monto)
+        km_termino
       `)
       .in('servicio_id', servicioIds)
       .eq('estado', 'terminado')
@@ -68,19 +67,15 @@ export async function GET(request: Request) {
       return Response.json({ error: error.message }, { status: 500 })
     }
 
-    const porFecha = new Map<string, { km: number; peaje: number }>()
+    const porFecha = new Map<string, { km: number }>()
 
     for (const viaje of viajes || []) {
       const key = viaje.fecha
       if (!porFecha.has(key)) {
-        porFecha.set(key, { km: 0, peaje: 0 })
+        porFecha.set(key, { km: 0 })
       }
       const entry = porFecha.get(key)!
       entry.km += viaje.km_termino != null ? viaje.km_termino - viaje.km_inicio : 0
-
-      for (const g of viaje.gastos || []) {
-        if (g.tipo === 'peaje') entry.peaje += g.monto
-      }
     }
 
     const dias = Array.from(porFecha.entries())
@@ -88,7 +83,6 @@ export async function GET(request: Request) {
       .map(([fecha, t]) => ({
         fecha,
         total_km: t.km,
-        peaje: t.peaje,
       }))
 
     return Response.json(dias)

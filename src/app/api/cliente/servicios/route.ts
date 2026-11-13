@@ -43,7 +43,6 @@ export async function GET(request: Request) {
           camiones (patente, marca),
           choferes (usuarios (nombre)),
           tipos_servicio (flujo),
-          gastos (id, tipo, monto, descripcion, foto_url),
           viaje_puntos (id, orden, tipo, nombre_punto, km_llegada, foto_guia_url, archivos, captured_at, anulado)
         )
       `)
@@ -61,7 +60,6 @@ export async function GET(request: Request) {
       ...servicio,
       viajes: (servicio.viajes || []).map((viaje) => ({
         ...viaje,
-        gastos: (viaje.gastos || []).filter((gasto) => gasto.tipo === 'peaje'),
         viaje_puntos: (viaje.viaje_puntos || [])
           .filter((punto) => !punto.anulado)
           .sort((a, b) => a.orden - b.orden)

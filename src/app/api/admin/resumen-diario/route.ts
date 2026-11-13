@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAdminOrSubadmin } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCamionesSubadmin } from '@/lib/subadmin'
 
 export async function GET(request: Request) {
   try {
-    const session = await requireAdmin()
+    const session = await requireAdminOrSubadmin()
     const supabase = createAdminClient()
+
+    const camionesSubadmin = await getCamionesSubadmin(supabase, session)
+
+    if (camionesSubadmin !== null && camionesSubadmin.length === 0) {
+      return NextResponse.json([])
+    }
 
     const { searchParams } = new URL(request.url)
     const desde = searchParams.get('desde')
@@ -28,7 +35,7 @@ export async function GET(request: Request) {
       .toISOString()
       .split('T')[0]
 
-    const { data: viajes, error } = await supabase
+    let viajesQuery = supabase
       .from('viajes')
       .select(`
         id,
@@ -42,6 +49,12 @@ export async function GET(request: Request) {
       .gte('fecha', utcDesde)
       .lte('fecha', utcHasta)
       .order('fecha', { ascending: true })
+
+    if (camionesSubadmin !== null) {
+      viajesQuery = viajesQuery.in('camion_id', camionesSubadmin)
+    }
+
+    const { data: viajes, error } = await viajesQuery
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })

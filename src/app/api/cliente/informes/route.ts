@@ -53,8 +53,7 @@ export async function GET(request: Request) {
           foto_km_inicio,
           foto_km_termino,
           camiones (patente),
-          choferes (usuarios (nombre)),
-          gastos (id, tipo, monto, descripcion, foto_url)
+          choferes (usuarios (nombre))
         )
       `)
       .in('cliente_id', clienteIds)
@@ -89,17 +88,6 @@ export async function GET(request: Request) {
         observaciones: viaje.observaciones,
         foto_km_inicio: shortenStorageUrl(viaje.foto_km_inicio, baseUrl),
         foto_km_termino: shortenStorageUrl(viaje.foto_km_termino, baseUrl),
-        gastos_peaje: (viaje.gastos || [])
-          .filter((g) => g.tipo === 'peaje')
-          .map((g) => ({
-            id: g.id,
-            monto: g.monto,
-            descripcion: g.descripcion,
-            foto_url: shortenStorageUrl(g.foto_url, baseUrl),
-          })),
-        total_peaje: (viaje.gastos || [])
-          .filter((g) => g.tipo === 'peaje')
-          .reduce((sum, g) => sum + g.monto, 0),
       }))
     )
 

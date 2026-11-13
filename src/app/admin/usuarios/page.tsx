@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface UsuarioActivo {
   id: string
@@ -13,9 +13,25 @@ interface UsuarioActivo {
   created_at: string
 }
 
+interface Subadmin {
+  id: string
+  nombre: string
+  email: string
+  activo: boolean
+  camion_ids: string[]
+}
+
+interface CamionOpcion {
+  id: string
+  patente: string
+  marca: string | null
+  activo: boolean
+}
+
 const ROL_LABEL: Record<string, string> = {
   superadmin: 'Super Admin',
   admin: 'Admin',
+  subadmin: 'Subadmin',
   chofer: 'Chófer',
   cliente: 'Cliente',
 }
@@ -39,6 +55,36 @@ export default function AdminUsuarios() {
   const [soloActivos, setSoloActivos] = useState(true)
   const [rol, setRol] = useState('')
 
+  const [subadmins, setSubadmins] = useState<Subadmin[]>([])
+  const [camiones, setCamiones] = useState<CamionOpcion[]>([])
+  const [seleccion, setSeleccion] = useState<Record<string, string[]>>({})
+  const [form, setForm] = useState({
+    nombre: '',
+    email: '',
+    password: '',
+    camion_ids: [] as string[],
+  })
+  const [guardando, setGuardando] = useState(false)
+  const [mensaje, setMensaje] = useState('')
+
+  const cargarSubadmins = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/subadmins')
+      if (!res.ok) return
+      const data = await res.json()
+      setSubadmins(data.subadmins || [])
+      setCamiones(data.camiones || [])
+
+      const mapa: Record<string, string[]> = {}
+      for (const subadmin of data.subadmins || []) {
+        mapa[subadmin.id] = subadmin.camion_ids || []
+      }
+      setSeleccion(mapa)
+    } catch {
+      // silencioso
+    }
+  }, [])
+
   useEffect(() => {
     async function fetchUsuarios() {
       try {
@@ -61,7 +107,65 @@ export default function AdminUsuarios() {
     fetchUsuarios()
   }, [soloActivos, rol])
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarSubadmins()
+  }, [cargarSubadmins])
+
   const activos = usuarios.filter((u) => u.activo).length
+
+  function alternarCamion(lista: string[], camionId: string): string[] {
+    return lista.includes(camionId)
+      ? lista.filter((id) => id !== camionId)
+      : [...lista, camionId]
+  }
+
+  async function crearSubadmin(e: React.FormEvent) {
+    e.preventDefault()
+    setMensaje('')
+    setGuardando(true)
+    try {
+      const res = await fetch('/api/admin/subadmins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMensaje(data.error || 'No se pudo crear el subadmin')
+        return
+      }
+      setForm({ nombre: '', email: '', password: '', camion_ids: [] })
+      setMensaje('Subadmin creado')
+      await cargarSubadmins()
+    } catch {
+      setMensaje('Error de conexión')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function guardarCamiones(subadminId: string) {
+    setMensaje('')
+    setGuardando(true)
+    try {
+      const res = await fetch(`/api/admin/subadmins/${subadminId}/camiones`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ camion_ids: seleccion[subadminId] || [] }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMensaje(data.error || 'No se pudieron guardar los camiones')
+        return
+      }
+      setMensaje('Camiones actualizados')
+    } catch {
+      setMensaje('Error de conexión')
+    } finally {
+      setGuardando(false)
+    }
+  }
 
   return (
     <div>
@@ -155,6 +259,161 @@ export default function AdminUsuarios() {
           ))}
         </div>
       )}
+
+      <div className="mt-12">
+        <h2 className="text-lg font-semibold text-white tracking-tight mb-1">Subadmins</h2>
+        <p className="text-sm text-zinc-500 mb-6">
+          Los subadmins solo ven rutas, reportes e información de los camiones que les asignes.
+        </p>
+
+        {mensaje && (
+          <div className="mb-5 p-3 rounded-xl border" style={{ background: '#0D2D1D', borderColor: '#0D5D3D' }}>
+            <p className="text-sm text-emerald-400">{mensaje}</p>
+          </div>
+        )}
+
+        <form
+          onSubmit={crearSubadmin}
+          className="rounded-xl border p-5 mb-6 space-y-4"
+          style={{ background: '#141414', borderColor: '#2A2A2A' }}
+        >
+          <p className="text-sm font-medium text-white">Nuevo subadmin</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <input
+              type="text"
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              placeholder="Nombre"
+              className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 outline-none"
+              style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+            />
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="Email de acceso"
+              className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 outline-none"
+              style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+            />
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="Contraseña (mín. 6)"
+              className="w-full rounded-lg border px-3 py-2.5 text-sm text-white placeholder-zinc-500 outline-none"
+              style={{ background: '#0D0D0D', borderColor: '#2A2A2A' }}
+            />
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+              Camiones asignados
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {camiones.length === 0 && (
+                <span className="text-xs text-zinc-600">No hay camiones registrados</span>
+              )}
+              {camiones.map((camion) => {
+                const activo = form.camion_ids.includes(camion.id)
+                return (
+                  <button
+                    key={camion.id}
+                    type="button"
+                    onClick={() =>
+                      setForm({ ...form, camion_ids: alternarCamion(form.camion_ids, camion.id) })
+                    }
+                    className="px-3 py-1.5 rounded-lg text-xs border transition-colors"
+                    style={{
+                      background: activo ? '#1A2D2A' : '#1A1A1A',
+                      borderColor: activo ? '#10B981' : '#2A2A2A',
+                      color: activo ? '#34d399' : '#a1a1aa',
+                    }}
+                  >
+                    {camion.patente}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={guardando}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+            style={{ background: '#10B981' }}
+          >
+            {guardando ? 'Guardando...' : 'Crear subadmin'}
+          </button>
+        </form>
+
+        {subadmins.length === 0 ? (
+          <p className="text-sm text-zinc-500">Aún no hay subadmins.</p>
+        ) : (
+          <div className="space-y-3">
+            {subadmins.map((subadmin) => {
+              const lista = seleccion[subadmin.id] || []
+              return (
+                <div
+                  key={subadmin.id}
+                  className="rounded-xl border p-5"
+                  style={{ background: '#141414', borderColor: '#2A2A2A' }}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{subadmin.nombre}</p>
+                      <p className="text-xs text-zinc-500">{subadmin.email}</p>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        subadmin.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
+                      }`}
+                    >
+                      {subadmin.activo ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {camiones.map((camion) => {
+                      const activo = lista.includes(camion.id)
+                      return (
+                        <button
+                          key={camion.id}
+                          type="button"
+                          onClick={() =>
+                            setSeleccion({
+                              ...seleccion,
+                              [subadmin.id]: alternarCamion(lista, camion.id),
+                            })
+                          }
+                          className="px-3 py-1.5 rounded-lg text-xs border transition-colors"
+                          style={{
+                            background: activo ? '#1A2D2A' : '#1A1A1A',
+                            borderColor: activo ? '#10B981' : '#2A2A2A',
+                            color: activo ? '#34d399' : '#a1a1aa',
+                          }}
+                        >
+                          {camion.patente}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => guardarCamiones(subadmin.id)}
+                    disabled={guardando}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                    style={{ background: '#2A2A2A' }}
+                  >
+                    Guardar camiones
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

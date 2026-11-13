@@ -130,14 +130,35 @@ export default function InformePuntos({
         }]
       }
 
-      return ruta.puntos.map((punto) => ({
-        ...base,
-        punto: `${punto.orden}. ${punto.nombre}`,
-        tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
-        km_punto: formatNumber(punto.km),
-        guia_url: punto.guia_url,
-        archivos: punto.archivos || [],
-      }))
+      return ruta.puntos.flatMap((punto): FilaInforme[] => {
+        const archivos = (punto.archivos?.length ?? 0) > 0
+          ? punto.archivos
+          : punto.guia_url
+            ? [{ url: punto.guia_url, nombre: 'Guía', tipo: 'image/jpeg' }]
+            : []
+
+        if (archivos.length === 0) {
+          return [{
+            ...base,
+            punto: `${punto.orden}. ${punto.nombre}`,
+            tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
+            km_punto: formatNumber(punto.km),
+            guia_url: null,
+            guia_label: '—',
+            archivos: [],
+          }]
+        }
+
+        return archivos.map((archivo, index) => ({
+          ...base,
+          punto: `${punto.orden}. ${punto.nombre}`,
+          tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
+          km_punto: formatNumber(punto.km),
+          guia_url: archivo.url,
+          guia_label: archivos.length > 1 ? `Abrir ${index + 1}` : 'Abrir',
+          archivos: [archivo],
+        }))
+      })
     })
   }
 
@@ -237,7 +258,7 @@ export default function InformePuntos({
       fila.km_punto,
       fila.km_final,
       formatNumber(fila.total_km),
-      fila.guia_url ? 'Abrir' : '—',
+      fila.guia_url ? (fila.guia_label || 'Abrir') : '—',
     ])
 
     const guiaCol = head.length - 1
@@ -288,93 +309,6 @@ export default function InformePuntos({
     })
 
     cursor = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 7
-
-    const guias = datos.rutas.flatMap((ruta) =>
-      ruta.puntos.flatMap((punto) => {
-        const archivos = (punto.archivos?.length ?? 0) > 0
-          ? punto.archivos
-          : punto.guia_url
-            ? [{ url: punto.guia_url, nombre: 'Guía', tipo: 'image/jpeg' }]
-            : []
-
-        return archivos.map((archivo, index) => ({
-          fecha: ruta.fecha,
-          camion: ruta.camion,
-          cliente: ruta.cliente,
-          chofer: ruta.chofer,
-          punto: `${punto.orden}. ${punto.nombre}`,
-          nombre: archivo.nombre || `Archivo ${index + 1}`,
-          url: archivo.url,
-        }))
-      })
-    )
-
-    if (guias.length > 0) {
-      if (cursor >= pageH - 25) {
-        doc.addPage()
-        cursor = 14
-      }
-
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Enlaces de guías y documentos', 12, cursor)
-      cursor += 4
-
-      const cabeceraGuias = [
-        'Patente',
-        'Fecha',
-        'Chofer',
-        ...(esAdmin ? ['Cliente'] : []),
-        'Punto',
-        'Archivo',
-        'Enlace de descarga',
-      ]
-      const enlaceCol = cabeceraGuias.length - 1
-      const estilosGuias: Record<number, { cellWidth: number }> = esAdmin
-        ? {
-            0: { cellWidth: 18 },
-            1: { cellWidth: 18 },
-            2: { cellWidth: 26 },
-            3: { cellWidth: 30 },
-            4: { cellWidth: 50 },
-            5: { cellWidth: 30 },
-            6: { cellWidth: 82 },
-          }
-        : {
-            0: { cellWidth: 18 },
-            1: { cellWidth: 18 },
-            2: { cellWidth: 28 },
-            3: { cellWidth: 55 },
-            4: { cellWidth: 30 },
-            5: { cellWidth: 102 },
-          }
-
-      autoTable(doc, {
-        startY: cursor,
-        head: [cabeceraGuias],
-        body: guias.map((g) => [
-          g.camion,
-          toChileanDate(g.fecha),
-          g.chofer,
-          ...(esAdmin ? [g.cliente] : []),
-          g.punto,
-          g.nombre,
-          g.url,
-        ]),
-        styles: { fontSize: 6.5, cellPadding: 1.4, overflow: 'linebreak' },
-        headStyles: { fillColor: [20, 20, 20], textColor: [255, 255, 255], fontSize: 7 },
-        columnStyles: estilosGuias,
-        margin: { left: 12, right: 12 },
-        didDrawCell: (data: CellHookData) => {
-          if (data.section !== 'body' || data.column.index !== enlaceCol) return
-          const guia = guias[data.row.index]
-          if (!guia?.url) return
-          doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, {
-            url: guia.url,
-          })
-        },
-      })
-    }
 
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')

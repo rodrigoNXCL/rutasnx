@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAdmin, requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { hashPassword } from '@/lib/auth'
 
 export async function GET() {
   try {
-    const session = await requireAdmin()
+    const session = await requireRole(['admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
 
     const { data: choferes, error } = await supabase

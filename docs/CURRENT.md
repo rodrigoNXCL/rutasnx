@@ -43,6 +43,8 @@
 - [x] Suite de pruebas automatizadas (Vitest)
 - [x] Puntos con múltiples imágenes/documentos (hasta 5, PDF incluido, cámara/galería)
 - [x] Registro local-first y aviso de conexión lenta en puntos
+- [x] Rol `subadmin` por empresa con acceso solo a rutas/reportes de camiones asignados
+- [x] Chofer puede operar varios camiones (selector al iniciar, validado contra asignaciones)
 
 ## Registro de Avance
 
@@ -56,6 +58,11 @@
 | 2026-11-09 | Eliminación del registro de ruta re-creado 09/11/2026 | Completado | `viaje_id=7cdfe962-dd47-4367-80b0-1526a66a25d9`; sin puntos/gastos/historial |
 | 2026-11-09 | Build y despliegue v2.6 en Cloudflare Workers | Completado | Version ID `c71c3c91-244f-4ac6-98d1-f4d2ffe3aca7`; commit docs `d7168fc` |
 | 2026-11-09 | Corrección: evidencia opcional en inicio de ruta y puntos | Desplegado | Version ID `66679f46-7144-47c7-beb5-2a4dc3f9181e` |
+| 2026-11-09 | Corrección: subida de archivos offline (cámara/múltiples) timeout 8 s → 20 s | Desplegada | Version ID `f645b10b-fddd-4cad-ab84-6d5c3acc51bf` |
+| 2026-11-09 | Corrección: informe cliente simple (archivos inline por punto, sin tabla aparte) | Desplegada | Version ID `a6d28d1b-022a-42bc-8a57-82c55a6bc46c` |
+| 2026-11-09 | Cliente sin gastos/peajes: APIs y UI limpiadas (servicios, informes, resumen diario) | Desplegada | Version ID `f80eb7c4-80a7-4c2b-a719-5f347b815603` |
+| 2026-11-10 | Subadmin por empresa: rol + `subadmin_camiones` y filtro por camiones en APIs admin | Desplegada | Version ID `600565a7-d294-4b57-ab73-337952eab1a5`; aplicar migración `20261110_subadmin` en Supabase |
+| 2026-11-10 | Chofer multi-camión: selección de asignación al iniciar y validación de camión asignado | Desplegada | Version ID `600565a7-d294-4b57-ab73-337952eab1a5` |
 | 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
 | 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
@@ -64,11 +71,13 @@
 - No eliminar `viaje_puntos.archivos` ni `viaje_punto_historial.archivos_anterior/nuevo`: la migración ya está aplicada y las APIs/informes dependen de esas columnas.
 - Mantener `foto_guia_url` como imagen principal y seguir poblándola; es el fallback de compatibilidad para informes, CSV y vistas antiguas.
 - La evidencia es opcional: si se adjunta, el punto admite hasta 5 archivos (JPG/PNG/WEBP/PDF) con máximo 5 MB y PDF solo en el bucket `guias`; si no se adjunta, se guarda sin evidencia. No reintroducir la obligación de adjuntar.
-- Mantener el flujo local-first de puntos: guardar en IndexedDB, mostrar "Pendiente", sincronizar por UUID idempotente, timeout de 8 s y opción "Descartar".
+- Mantener el flujo local-first de puntos: guardar en IndexedDB, mostrar "Pendiente", sincronizar por UUID idempotente, timeout de 8 s para la sincronización del punto y timeout de subida de archivos de 20 s (`UPLOAD_ARCHIVOS_TIMEOUT_MS`) y opción "Descartar".
 - Los informes admin/cliente, CSV y PDF deben listar todos los archivos de `archivos`, no solo `foto_guia_url`.
 - No recrear la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` ni la foto `km-fotos/1794222187565-ttwcqkc53ok.jpg`.
 - Mantener `/api/upload` con subida múltiple y el bucket `guias` con `application/pdf` permitido.
 - Antes de desplegar: `npx tsc --noEmit`, `npm test` (21 pruebas) y `npm run build`; para Cloudflare, `npm run build:vinext` y `npm run deploy:prod`.
+- El subadmin solo accede a Dashboard, Rutas y Reportes; las APIs de lectura filtran por `subadmin_camiones`. No exponer endpoints de gestión a subadmin.
+- El chofer solo puede iniciar ruta con un camión que tenga asignación activa (`asignaciones`); no permitir camiones arbitrarios.
 
 ## Estructura de Rutas Implementada
 
@@ -140,7 +149,7 @@ Reglas:
 - `manifest.webmanifest` + service worker (`/sw.js`) cachean el shell de `/chofer` y los assets estáticos.
 - Los puntos se pueden registrar sin conexión: los archivos y datos se guardan en IndexedDB (`rutasnx-offline`).
 - El registro es **local-first**: al agregar un punto se guarda primero en el dispositivo y se muestra de inmediato; la sincronización ocurre en segundo plano.
-- Se detecta conexión lenta con `navigator.onLine`/`navigator.connection` y un timeout de 8 s por subida. Si la red es lenta o falla, se avisa que el punto quedó en el dispositivo y se puede reintentar con "Sincronizar".
+- Se detecta conexión lenta con `navigator.onLine`/`navigator.connection` y un timeout de subida de archivos de 20 s (sincronización de punto de 8 s). Si la red es lenta o falla, se avisa que el punto quedó en el dispositivo y se puede reintentar con "Sincronizar".
 - Al recuperar conexión (o al presionar "Sincronizar"), se suben los archivos en una sola petición y se hace `POST` con el mismo `id` (UUID), por lo que los reintentos son idempotentes.
 - El punto pendiente se muestra en la lista con badge "Pendiente"; se advierte sincronizar antes de cerrar la ruta y se puede "Descartar" si no se enviará.
 - La ruta activa se cachea en `localStorage` (`rutasnx:viaje-activo`) y la lista de puntos sincronizados en `rutasnx:puntos:{viajeId}` para mantener el último odómetro visible offline.
@@ -175,6 +184,8 @@ Reglas:
 - `GET /api/admin/valorizador/historial` - Historial de cambios del valorizador
 - `POST /api/clientes/[id]/usuarios` - Agregar usuario a un cliente
 - `DELETE /api/clientes/[id]/usuarios/[usuarioId]` - Quitar usuario de un cliente
+- `GET/POST /api/admin/subadmins` - Lista/crea subadmins de la empresa (solo admin)
+- `PUT /api/admin/subadmins/[id]/camiones` - Asigna camiones a un subadmin (solo admin)
 - `GET /s/[bucket]/[file]` - Redirect a la imagen real en Supabase Storage (URL corta de respaldos)
 
 ## Deploy
@@ -182,7 +193,7 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
-- **Último deploy**: 2026-11-09, Version ID `66679f46-7144-47c7-beb5-2a4dc3f9181e`
+- **Último deploy**: 2026-11-10, Version ID `600565a7-d294-4b57-ab73-337952eab1a5` (subadmin por empresa + chofer multi-camión)
 
 ## Historial de Cambios
 

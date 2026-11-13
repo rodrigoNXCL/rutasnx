@@ -8,6 +8,8 @@ function getDashboardForRole(rol: Rol): string {
       return '/superadmin/dashboard'
     case 'admin':
       return '/admin/dashboard'
+    case 'subadmin':
+      return '/admin/dashboard'
     case 'chofer':
       return '/chofer/registro'
     case 'cliente':
