@@ -10,7 +10,7 @@ interface Chofer {
   telefono: string | null
   activo: boolean
   created_at: string
-  usuarios: { email: string } | null
+  usuarios: { email: string; activo: boolean } | null
 }
 
 export default function ChoferesPage() {
@@ -24,7 +24,7 @@ export default function ChoferesPage() {
     licencia: '',
     telefono: '',
     activo: true,
-    crear_usuario: false,
+    activar_acceso: false,
     password: ''
   })
 
@@ -53,7 +53,7 @@ export default function ChoferesPage() {
       licencia: '',
       telefono: '',
       activo: true,
-      crear_usuario: false,
+      activar_acceso: false,
       password: ''
     })
     setShowModal(true)
@@ -67,7 +67,7 @@ export default function ChoferesPage() {
       licencia: chofer.licencia || '',
       telefono: chofer.telefono || '',
       activo: chofer.activo,
-      crear_usuario: false,
+      activar_acceso: chofer.usuarios?.activo ?? false,
       password: ''
     })
     setShowModal(true)
@@ -82,7 +82,9 @@ export default function ChoferesPage() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(
+          editChofer ? form : { ...form, crear_usuario: form.activar_acceso }
+        ),
       })
 
       if (res.ok) {
@@ -214,36 +216,41 @@ export default function ChoferesPage() {
                 />
               </div>
 
-              {!editChofer && (
-                <div className="border-t border-zinc-800 pt-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <input
-                      type="checkbox"
-                      id="crear_usuario"
-                      checked={form.crear_usuario}
-                      onChange={(e) => setForm({ ...form, crear_usuario: e.target.checked })}
-                      className="rounded accent-emerald-600"
-                    />
-                    <label htmlFor="crear_usuario" className="text-sm text-zinc-400">
-                      Crear acceso móvil
-                    </label>
-                  </div>
-
-                  {form.crear_usuario && (
-                    <div>
-                      <input
-                        type="password"
-                        value={form.password}
-                        onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        placeholder="Contraseña"
-                        className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
-                        style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
-                        required={form.crear_usuario}
-                      />
-                    </div>
-                  )}
+              <div className="border-t border-zinc-800 pt-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    id="activar_acceso"
+                    checked={form.activar_acceso}
+                    onChange={(e) => setForm({ ...form, activar_acceso: e.target.checked })}
+                    className="rounded accent-emerald-600"
+                  />
+                  <label htmlFor="activar_acceso" className="text-sm text-zinc-400">
+                    {editChofer?.usuarios
+                      ? 'Acceso móvil activo (puedes cambiar la clave)'
+                      : 'Crear/activar acceso móvil'}
+                  </label>
                 </div>
-              )}
+
+                {form.activar_acceso && (
+                  <div>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder={editChofer?.usuarios ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+                      className="w-full rounded-lg border px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none transition-colors"
+                      style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}
+                      required={!editChofer?.usuarios}
+                    />
+                    {editChofer?.usuarios && (
+                      <p className="text-[11px] text-zinc-500 mt-1">
+                        Login: {editChofer.usuarios.email}. Si dejas la clave vacía, se mantiene la actual.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 <input

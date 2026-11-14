@@ -127,6 +127,7 @@ interface PuntosRutaProps {
   clienteId: string | null
   kmInicio: number
   soloEdicion?: boolean
+  soloLectura?: boolean
 }
 
 interface EdicionForm {
@@ -135,7 +136,7 @@ interface EdicionForm {
   km_llegada: string
 }
 
-export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion = false }: PuntosRutaProps) {
+export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion = false, soloLectura = false }: PuntosRutaProps) {
   const [puntos, setPuntos] = useState<Punto[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -936,7 +937,7 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
                 </div>
               )}
 
-              {punto.pendiente ? (
+              {!soloLectura && (punto.pendiente ? (
                 <div className="flex gap-4 mt-3">
                   <button
                     type="button"
@@ -967,13 +968,13 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
                     Anular
                   </button>
                 </div>
-              )}
+              ))}
             </div>
           ))}
         </div>
       )}
 
-      {!soloEdicion && (
+      {!soloEdicion && !soloLectura && (
       <form onSubmit={agregarPunto} className="rounded-lg p-4 border space-y-3" style={{ background: '#1A1A1A', borderColor: '#2A2A2A' }}>
         <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Nuevo punto</p>
 
@@ -1074,8 +1075,12 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
       </form>
       )}
 
-      {soloEdicion && (
-        <p className="text-xs text-zinc-500">Ruta cerrada: puedes corregir o anular puntos con motivo.</p>
+      {(soloEdicion || soloLectura) && (
+        <p className="text-xs text-zinc-500">
+          {soloLectura
+            ? 'Solo lectura: no puedes corregir ni anular puntos.'
+            : 'Ruta cerrada: puedes corregir o anular puntos con motivo.'}
+        </p>
       )}
 
       {editando && (

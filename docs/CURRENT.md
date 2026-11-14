@@ -63,6 +63,7 @@
 | 2026-11-09 | Cliente sin gastos/peajes: APIs y UI limpiadas (servicios, informes, resumen diario) | Desplegada | Version ID `f80eb7c4-80a7-4c2b-a719-5f347b815603` |
 | 2026-11-10 | Subadmin por empresa: rol + `subadmin_camiones` y filtro por camiones en APIs admin | Desplegada | Version ID `600565a7-d294-4b57-ab73-337952eab1a5`; aplicar migración `20261110_subadmin` en Supabase |
 | 2026-11-10 | Chofer multi-camión: selección de asignación al iniciar y validación de camión asignado | Desplegada | Version ID `600565a7-d294-4b57-ab73-337952eab1a5` |
+| 2026-11-14 | Correcciones: acceso de chofer, subadmin solo lectura, 401/403, dedupe/selector de camión | Desplegada | Version ID `95cffdcf-f90c-4e39-bbf7-425c9fb2154f` |
 | 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
 | 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
@@ -77,6 +78,7 @@
 - Mantener `/api/upload` con subida múltiple y el bucket `guias` con `application/pdf` permitido.
 - Antes de desplegar: `npx tsc --noEmit`, `npm test` (21 pruebas) y `npm run build`; para Cloudflare, `npm run build:vinext` y `npm run deploy:prod`.
 - El subadmin solo accede a Dashboard, Rutas y Reportes; las APIs de lectura filtran por `subadmin_camiones`. No exponer endpoints de gestión a subadmin.
+- El subadmin **sí ve los gastos** de sus camiones (es personal de la empresa, no del cliente); los informes/resumen usan las APIs de admin filtradas por camiones. No aplicar la restricción de gastos del cliente.
 - El chofer solo puede iniciar ruta con un camión que tenga asignación activa (`asignaciones`); no permitir camiones arbitrarios.
 
 ## Estructura de Rutas Implementada
@@ -193,7 +195,7 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
-- **Último deploy**: 2026-11-10, Version ID `600565a7-d294-4b57-ab73-337952eab1a5` (subadmin por empresa + chofer multi-camión)
+- **Último deploy**: 2026-11-14, Version ID `95cffdcf-f90c-4e39-bbf7-425c9fb2154f` (acceso de chofer, subadmin solo lectura, 401/403 y selector de camión)
 
 ## Historial de Cambios
 
@@ -213,20 +215,25 @@ Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede edita
 
 Detalles detectados durante las pruebas (2026-11-14) para corregir de forma ordenada.
 
-| # | Detalle | Archivos | Prioridad |
-|---|---------|----------|-----------|
-| 1 | Edición de chofer no permite crear/activar el usuario de acceso: `PUT /api/choferes/[id]` solo actualiza datos del chofer. Agregar creación/activación de usuario (email=RUT, password, activo) desde la edición. Caso actual: Jose Herrera corregido manualmente en BD. | `src/app/api/choferes/[id]/route.ts`, `src/app/admin/choferes/page.tsx` | Alta |
-| 2 | Las APIs devuelven 500 "Error interno" en vez de 401/403 cuando falta permiso (`requireRole` lanza `Error` genérico y el catch responde 500). | `src/lib/auth.ts` + rutas API | Media |
-| 3 | Subadmin ve botones de edición en `/admin/rutas`; el `PUT /api/viajes/[id]` no lo permite (hoy responde 500). Ocultar acciones de escritura u responder 403. | `src/app/admin/rutas/page.tsx`, `src/app/api/viajes/[id]/route.ts` | Media |
-| 4 | No hay activar/desactivar/eliminar subadmin ni reset de contraseña desde la UI. | `src/app/api/admin/subadmins/*`, `src/app/admin/usuarios/page.tsx` | Media |
-| 5 | Validar que el servicio elegido corresponda al camión asignado al iniciar ruta (hoy solo valida el camión). | `src/app/api/viajes/iniciar/route.ts` | Baja |
-| 6 | Verificar en runtime el informe PDF/CSV con un punto de 2+ archivos: deben verse "Abrir 1", "Abrir 2" (una fila por archivo). | `src/components/InformePuntos.tsx` | Media |
-| 7 | Verificar en runtime el subadmin (dashboard/rutas/reportes filtrados por sus camiones) y el flujo chofer multi-camión (selector + validación). | — | Alta |
-| 8 | `/api/cliente/informes` quedó sin uso (la página `/cliente/informes` redirige a puntos y guías): evaluar eliminar o mantener por compatibilidad. | `src/app/api/cliente/informes/route.ts` | Baja |
-| 9 | Bloque "Subadmins" en `/admin/usuarios` sin estado de carga propio (solo el listado de usuarios lo tiene). | `src/app/admin/usuarios/page.tsx` | Baja |
-| 10 | Tras cada deploy, la PWA puede requerir hard refresh para tomar el nuevo shell/JS. | `public/sw.js` | Baja |
-| 11 | `subadmin_camiones` tiene RLS habilitado sin políticas (acceso solo vía service role). Documentar/definir políticas si se usa cliente autenticado. | `supabase/migrations/20261110_subadmin.sql` | Baja |
-| 12 | Bucket `guias` es público: evaluar bucket privado con URLs firmadas. | Supabase Storage | Baja |
+| # | Detalle | Archivos | Estado |
+|---|---------|----------|--------|
+| 1 | Edición de chofer no permitía crear/activar el usuario de acceso. Ahora se puede crear/activar y resetear clave desde la edición (email=RUT). | `src/app/api/choferes/[id]/route.ts`, `src/app/admin/choferes/page.tsx` | Desplegado |
+| 2 | Las APIs devolvían 500 en vez de 401/403 al faltar permiso. Se agregó `AuthError` + `errorResponse` en las rutas API. | `src/lib/auth.ts`, `src/lib/api-error.ts`, rutas API | Desplegado |
+| 3 | Subadmin veía acciones de escritura en `/admin/rutas`. Ahora la vista es solo lectura (oculta edición y acciones de puntos). | `src/app/admin/rutas/page.tsx`, `src/app/chofer/registro/PuntosRuta.tsx` | Desplegado |
+| 4 | No había activar/desactivar subadmin ni reset de clave. Agregado `PATCH /api/admin/subadmins/[id]` + botones en Usuarios. | `src/app/api/admin/subadmins/[id]/route.ts`, `src/app/admin/usuarios/page.tsx` | Desplegado |
+| 5 | No se validaba que el servicio correspondiera al camión asignado al iniciar ruta. Ahora se valida camión+servicio. | `src/app/api/viajes/iniciar/route.ts` | Desplegado |
+| 6 | Verificar en runtime el informe PDF/CSV con un punto de 2+ archivos: deben verse "Abrir 1", "Abrir 2" (una fila por archivo). | `src/components/InformePuntos.tsx` | Pendiente verificación runtime |
+| 7 | Verificar en runtime el subadmin (dashboard/rutas/reportes filtrados por sus camiones, **incluyendo gastos**) y el flujo chofer multi-camión. | — | Pendiente verificación runtime |
+| 8 | `/api/cliente/informes` quedó sin uso (la página `/cliente/informes` redirige a puntos y guías): evaluar eliminar o mantener por compatibilidad. | `src/app/api/cliente/informes/route.ts` | Pendiente (decisión) |
+| 9 | Bloque "Subadmins" en `/admin/usuarios` sin estado de carga propio. Agregado estado de carga. | `src/app/admin/usuarios/page.tsx` | Desplegado |
+| 10 | Tras cada deploy, la PWA puede requerir hard refresh para tomar el nuevo shell/JS. | `public/sw.js` | Nota operativa |
+| 11 | `subadmin_camiones` tiene RLS habilitado sin políticas (acceso solo vía service role). Documentar/definir políticas si se usa cliente autenticado. | `supabase/migrations/20261110_subadmin.sql` | Nota |
+| 12 | Bucket `guias` es público: evaluar bucket privado con URLs firmadas. | Supabase Storage | Pendiente (decisión) |
+| 13 | El chofer veía una patente “repetida” con badge Fruta: la UI mostraba las tarjetas de selección y además un panel del camión seleccionado. Se eliminó el panel duplicado y las tarjetas ahora muestran patente, marca, servicio y tipo; la API deduplica asignaciones idénticas (camión+servicio). | `src/app/chofer/registro/page.tsx`, `src/app/api/chofer/asignacion/route.ts` | Desplegado |
+
+**Criterios confirmados:**
+- El **subadmin pertenece a la empresa** (no al cliente): **sí ve los gastos** de sus camiones asignados (informes y resumen diario con todos los tipos de gasto), acotado por `subadmin_camiones`.
+- El **cliente** sigue sin ver gastos (solo puntos/guías y resumen de km).
 
 ## Pendientes Recomendados (no bloqueantes)
 

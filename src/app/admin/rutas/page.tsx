@@ -72,6 +72,14 @@ export default function AdminRutas() {
   const [editMotivo, setEditMotivo] = useState('')
   const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
+  const [esSubadmin, setEsSubadmin] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setEsSubadmin(data?.rol === 'subadmin'))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     cargarCatalogos()
@@ -430,6 +438,7 @@ export default function AdminRutas() {
                 </div>
               )}
 
+              {!esSubadmin && (
               <form onSubmit={guardarRuta} className="rounded-xl p-4 border space-y-3" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
                 <p className="text-sm font-medium text-white">Datos de la ruta</p>
 
@@ -491,6 +500,7 @@ export default function AdminRutas() {
                   {saving ? 'Guardando...' : 'Guardar datos de ruta'}
                 </button>
               </form>
+              )}
 
               {seleccionada.tipos_servicio?.flujo === 'puntos' && (
                 <PuntosRuta
@@ -499,6 +509,7 @@ export default function AdminRutas() {
                   clienteId={seleccionada.cliente_id}
                   kmInicio={seleccionada.km_inicio}
                   soloEdicion={seleccionada.estado !== 'en_curso'}
+                  soloLectura={esSubadmin}
                 />
               )}
             </div>

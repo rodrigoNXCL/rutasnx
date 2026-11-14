@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { shortenStorageUrl } from '@/lib/short-url'
@@ -244,7 +245,6 @@ export async function GET(request: Request) {
       resumen,
     })
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

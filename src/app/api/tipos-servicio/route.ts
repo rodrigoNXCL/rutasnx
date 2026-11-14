@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { requireAdmin, requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { FlujoServicio } from '@/types/database'
@@ -54,8 +55,7 @@ export async function GET() {
       }))
     )
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }
 
@@ -104,7 +104,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ...data, servicios_count: 0 })
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

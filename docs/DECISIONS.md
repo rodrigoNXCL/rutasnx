@@ -126,6 +126,7 @@
 - Rol `subadmin` dentro de una empresa; el admin le asigna camiones en `subadmin_camiones`.
 - Accede a `/admin/dashboard`, `/admin/rutas` y `/admin/reportes`; no a gestión (camiones, choferes, clientes, servicios, asignaciones, usuarios, valorizador, empresas, tipos de servicio).
 - Las APIs de lectura (`stats`, `viajes`, `informes`, `informes/puntos`, `resumen-diario`) filtran por los camiones asignados al subadmin.
+- **Ve los gastos completos de sus camiones** (es personal de la empresa, no del cliente): informes y resumen diario incluyen todos los tipos de gasto, igual que el admin, pero acotados a sus camiones. La restricción de “cliente sin gastos” no aplica al subadmin.
 
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin

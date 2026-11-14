@@ -693,7 +693,7 @@ export default function ChoferRegistro() {
 
             {asignaciones.length > 1 && (
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide">Selecciona asignación</label>
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wide">Selecciona el camión</label>
                 {asignaciones.map((a) => (
                   <button
                     key={a.id}
@@ -706,7 +706,17 @@ export default function ChoferRegistro() {
                     }`}
                     style={{ background: asignacion?.id === a.id ? '#1A2D2A' : '#141414' }}
                   >
-                    <p className="text-sm font-medium text-white">{a.camiones.patente}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-white">{a.camiones.patente}</p>
+                      {a.servicios?.tipos_servicio && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">
+                          {a.servicios.tipos_servicio.nombre}
+                        </span>
+                      )}
+                    </div>
+                    {a.camiones.marca && (
+                      <p className="text-xs text-zinc-500 mt-0.5">{a.camiones.marca}</p>
+                    )}
                     {a.servicios && (
                       <p className="text-xs text-zinc-500 mt-0.5">{a.servicios.nombre}</p>
                     )}
@@ -715,7 +725,7 @@ export default function ChoferRegistro() {
               </div>
             )}
 
-            {asignacion && (
+            {asignaciones.length === 1 && asignacion && (
               <div className="rounded-xl p-5 border" style={{ background: '#141414', borderColor: '#2A2A2A' }}>
                 <p className="text-sm font-medium text-white">{asignacion.camiones.patente}</p>
                 {asignacion.camiones.marca && (

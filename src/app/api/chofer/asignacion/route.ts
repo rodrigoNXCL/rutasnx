@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -44,9 +45,16 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(asignaciones || [])
+    const vistas = new Set<string>()
+    const unicas = (asignaciones || []).filter((asignacion) => {
+      const clave = `${asignacion.camiones?.id || ''}-${asignacion.servicios?.id || ''}`
+      if (vistas.has(clave)) return false
+      vistas.add(clave)
+      return true
+    })
+
+    return NextResponse.json(unicas)
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

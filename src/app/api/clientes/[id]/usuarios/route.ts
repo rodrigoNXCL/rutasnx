@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { requireAdmin, hashPassword } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -145,7 +146,6 @@ export async function POST(
 
     return NextResponse.json({ usuario, cliente_id: id })
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

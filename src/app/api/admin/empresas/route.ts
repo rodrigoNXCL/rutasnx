@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { getSession, hashPassword } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -30,8 +31,7 @@ export async function GET() {
 
     return NextResponse.json(empresas || [])
   } catch (error) {
-    console.error('Error listando empresas:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }
 
@@ -104,7 +104,6 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
-    console.error('Error creando empresa + admin:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

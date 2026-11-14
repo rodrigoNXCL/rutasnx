@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { requireChofer } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -49,17 +50,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Camión no encontrado' }, { status: 404 })
     }
 
-    const { data: asignacionActiva } = await supabase
+    let asignacionQuery = supabase
       .from('asignaciones')
       .select('id')
       .eq('chofer_id', chofer.id)
       .eq('camion_id', camion_id)
       .eq('activo', true)
-      .maybeSingle()
+
+    if (servicio_id) {
+      asignacionQuery = asignacionQuery.eq('servicio_id', servicio_id)
+    }
+
+    const { data: asignacionActiva } = await asignacionQuery.maybeSingle()
 
     if (!asignacionActiva) {
       return NextResponse.json(
-        { error: 'El camión no está asignado al chófer' },
+        { error: 'El camión/servicio no está asignado al chófer' },
         { status: 400 }
       )
     }
@@ -116,7 +122,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(viaje)
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

@@ -137,15 +137,25 @@ export async function getSession(): Promise<SesionUsuario | null> {
 export async function requireAuth(): Promise<SesionUsuario> {
   const session = await getSession()
   if (!session) {
-    throw new Error('No autenticado')
+    throw new AuthError('No autenticado', 401)
   }
   return session
+}
+
+export class AuthError extends Error {
+  status: number
+
+  constructor(message: string, status = 403) {
+    super(message)
+    this.name = 'AuthError'
+    this.status = status
+  }
 }
 
 export async function requireRole(roles: Rol[]): Promise<SesionUsuario> {
   const session = await requireAuth()
   if (!roles.includes(session.rol)) {
-    throw new Error('No autorizado')
+    throw new AuthError('No autorizado', 403)
   }
   return session
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { errorResponse } from '@/lib/api-error'
 import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getViajeAcceso } from '@/lib/viaje-access'
@@ -50,8 +51,7 @@ export async function GET(
 
     return NextResponse.json({ puntos: puntos || [] })
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }
 
@@ -236,7 +236,6 @@ export async function POST(
 
     return NextResponse.json(punto, { status: 201 })
   } catch (error) {
-    console.error('Error:', error)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return errorResponse(error)
   }
 }

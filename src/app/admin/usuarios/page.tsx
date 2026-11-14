@@ -65,6 +65,7 @@ export default function AdminUsuarios() {
     camion_ids: [] as string[],
   })
   const [guardando, setGuardando] = useState(false)
+  const [cargandoSubadmins, setCargandoSubadmins] = useState(true)
   const [mensaje, setMensaje] = useState('')
 
   const cargarSubadmins = useCallback(async () => {
@@ -82,6 +83,8 @@ export default function AdminUsuarios() {
       setSeleccion(mapa)
     } catch {
       // silencioso
+    } finally {
+      setCargandoSubadmins(false)
     }
   }, [])
 
@@ -160,6 +163,53 @@ export default function AdminUsuarios() {
         return
       }
       setMensaje('Camiones actualizados')
+    } catch {
+      setMensaje('Error de conexión')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function cambiarEstadoSubadmin(subadminId: string, activo: boolean) {
+    setMensaje('')
+    setGuardando(true)
+    try {
+      const res = await fetch(`/api/admin/subadmins/${subadminId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMensaje(data.error || 'No se pudo cambiar el estado')
+        return
+      }
+      setMensaje(activo ? 'Subadmin activado' : 'Subadmin desactivado')
+      await cargarSubadmins()
+    } catch {
+      setMensaje('Error de conexión')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function resetearClaveSubadmin(subadminId: string) {
+    const password = window.prompt('Nueva contraseña (mínimo 6 caracteres)')
+    if (!password) return
+    setMensaje('')
+    setGuardando(true)
+    try {
+      const res = await fetch(`/api/admin/subadmins/${subadminId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMensaje(data.error || 'No se pudo cambiar la contraseña')
+        return
+      }
+      setMensaje('Contraseña actualizada')
     } catch {
       setMensaje('Error de conexión')
     } finally {
@@ -347,7 +397,9 @@ export default function AdminUsuarios() {
           </button>
         </form>
 
-        {subadmins.length === 0 ? (
+        {cargandoSubadmins ? (
+          <p className="text-sm text-zinc-500">Cargando subadmins...</p>
+        ) : subadmins.length === 0 ? (
           <p className="text-sm text-zinc-500">Aún no hay subadmins.</p>
         ) : (
           <div className="space-y-3">
@@ -408,6 +460,27 @@ export default function AdminUsuarios() {
                   >
                     Guardar camiones
                   </button>
+
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => cambiarEstadoSubadmin(subadmin.id, !subadmin.activo)}
+                      disabled={guardando}
+                      className="px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50"
+                      style={{ background: '#1A1A1A', borderColor: '#2A2A2A', color: '#a1a1aa' }}
+                    >
+                      {subadmin.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resetearClaveSubadmin(subadmin.id)}
+                      disabled={guardando}
+                      className="px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50"
+                      style={{ background: '#1A1A1A', borderColor: '#2A2A2A', color: '#a1a1aa' }}
+                    >
+                      Resetear clave
+                    </button>
+                  </div>
                 </div>
               )
             })}
