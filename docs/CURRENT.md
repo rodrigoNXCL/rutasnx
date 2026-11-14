@@ -209,6 +209,25 @@ Anterior: El **Resumen Diario** quedó integrado dentro de **Reportes** (tabs: I
 
 Actualización: el cliente ve solo gastos de tipo `peaje`; el chofer puede editar rutas terminadas (km, observaciones, fotos y CRUD de gastos).
 
+## Registro de Incidencias y Correcciones Pendientes
+
+Detalles detectados durante las pruebas (2026-11-14) para corregir de forma ordenada.
+
+| # | Detalle | Archivos | Prioridad |
+|---|---------|----------|-----------|
+| 1 | Edición de chofer no permite crear/activar el usuario de acceso: `PUT /api/choferes/[id]` solo actualiza datos del chofer. Agregar creación/activación de usuario (email=RUT, password, activo) desde la edición. Caso actual: Jose Herrera corregido manualmente en BD. | `src/app/api/choferes/[id]/route.ts`, `src/app/admin/choferes/page.tsx` | Alta |
+| 2 | Las APIs devuelven 500 "Error interno" en vez de 401/403 cuando falta permiso (`requireRole` lanza `Error` genérico y el catch responde 500). | `src/lib/auth.ts` + rutas API | Media |
+| 3 | Subadmin ve botones de edición en `/admin/rutas`; el `PUT /api/viajes/[id]` no lo permite (hoy responde 500). Ocultar acciones de escritura u responder 403. | `src/app/admin/rutas/page.tsx`, `src/app/api/viajes/[id]/route.ts` | Media |
+| 4 | No hay activar/desactivar/eliminar subadmin ni reset de contraseña desde la UI. | `src/app/api/admin/subadmins/*`, `src/app/admin/usuarios/page.tsx` | Media |
+| 5 | Validar que el servicio elegido corresponda al camión asignado al iniciar ruta (hoy solo valida el camión). | `src/app/api/viajes/iniciar/route.ts` | Baja |
+| 6 | Verificar en runtime el informe PDF/CSV con un punto de 2+ archivos: deben verse "Abrir 1", "Abrir 2" (una fila por archivo). | `src/components/InformePuntos.tsx` | Media |
+| 7 | Verificar en runtime el subadmin (dashboard/rutas/reportes filtrados por sus camiones) y el flujo chofer multi-camión (selector + validación). | — | Alta |
+| 8 | `/api/cliente/informes` quedó sin uso (la página `/cliente/informes` redirige a puntos y guías): evaluar eliminar o mantener por compatibilidad. | `src/app/api/cliente/informes/route.ts` | Baja |
+| 9 | Bloque "Subadmins" en `/admin/usuarios` sin estado de carga propio (solo el listado de usuarios lo tiene). | `src/app/admin/usuarios/page.tsx` | Baja |
+| 10 | Tras cada deploy, la PWA puede requerir hard refresh para tomar el nuevo shell/JS. | `public/sw.js` | Baja |
+| 11 | `subadmin_camiones` tiene RLS habilitado sin políticas (acceso solo vía service role). Documentar/definir políticas si se usa cliente autenticado. | `supabase/migrations/20261110_subadmin.sql` | Baja |
+| 12 | Bucket `guias` es público: evaluar bucket privado con URLs firmadas. | Supabase Storage | Baja |
+
 ## Pendientes Recomendados (no bloqueantes)
 
 - Prueba runtime en dispositivo real: cámara/galería, 5 archivos, PDF, modo avión y reconexión.

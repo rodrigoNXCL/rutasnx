@@ -27,7 +27,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 - [x] Empresa RCC creada (RCC Servicios EIRL)
 - [x] Usuario superadmin creado (1 usuario activo verificado)
 - [x] Migración `20261109_puntos_multiarchivo` aplicada y verificada en Supabase (2026-11-09)
-- [ ] Migración `20261110_subadmin` (rol `subadmin` + tabla `subadmin_camiones`) — aplicar en Supabase
+- [x] Migración `20261110_subadmin` (rol `subadmin` + tabla `subadmin_camiones`) aplicada y verificada en Supabase (2026-11-14)
 
 ## Migraciones
 
