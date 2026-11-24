@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import jsPDF from 'jspdf'
-import autoTable, { type CellHookData } from 'jspdf-autotable'
+import autoTable, { type CellHookData, type RowInput } from 'jspdf-autotable'
 import { esImagen } from '@/lib/archivos-punto'
 import {
   RESPUESTA_VACIA,
@@ -14,6 +14,7 @@ import {
   todayChile,
   type FilaInforme,
   type InformeRespuesta,
+  type RutaPuntos,
 } from '@/lib/informe-puntos'
 
 interface InformePuntosProps {
@@ -106,60 +107,80 @@ export default function InformePuntos({
     return 'Todos'
   }
 
-  function filasInforme(): FilaInforme[] {
-    return datos.rutas.flatMap((ruta) => {
-      const base = {
-        fecha: ruta.fecha,
-        camion: ruta.camion,
-        cliente: ruta.cliente,
-        chofer: ruta.chofer,
-        servicio: ruta.servicio,
-        km_inicio: ruta.km_inicio,
-        km_final: ruta.km_termino != null ? formatNumber(ruta.km_termino) : '—',
-        total_km: ruta.total_km,
-      }
+  function filasDeRuta(ruta: RutaPuntos): FilaInforme[] {
+    const base = {
+      fecha: ruta.fecha,
+      camion: ruta.camion,
+      cliente: ruta.cliente,
+      chofer: ruta.chofer,
+      servicio: ruta.servicio,
+      km_inicio: ruta.km_inicio,
+      km_final: ruta.km_termino != null ? formatNumber(ruta.km_termino) : '—',
+      total_km: ruta.total_km,
+    }
 
-      if (ruta.puntos.length === 0) {
+    if (ruta.puntos.length === 0) {
+      return [{
+        ...base,
+        punto: '—',
+        tipo: '—',
+        km_punto: '',
+        guia_url: null,
+        archivos: [],
+      }]
+    }
+
+    return ruta.puntos.flatMap((punto): FilaInforme[] => {
+      const archivos = (punto.archivos?.length ?? 0) > 0
+        ? punto.archivos
+        : punto.guia_url
+          ? [{ url: punto.guia_url, nombre: 'Guía', tipo: 'image/jpeg' }]
+          : []
+
+      if (archivos.length === 0) {
         return [{
-          ...base,
-          punto: '—',
-          tipo: '—',
-          km_punto: '',
-          guia_url: null,
-          archivos: [],
-        }]
-      }
-
-      return ruta.puntos.flatMap((punto): FilaInforme[] => {
-        const archivos = (punto.archivos?.length ?? 0) > 0
-          ? punto.archivos
-          : punto.guia_url
-            ? [{ url: punto.guia_url, nombre: 'Guía', tipo: 'image/jpeg' }]
-            : []
-
-        if (archivos.length === 0) {
-          return [{
-            ...base,
-            punto: `${punto.orden}. ${punto.nombre}`,
-            tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
-            km_punto: formatNumber(punto.km),
-            guia_url: null,
-            guia_label: '—',
-            archivos: [],
-          }]
-        }
-
-        return archivos.map((archivo, index) => ({
           ...base,
           punto: `${punto.orden}. ${punto.nombre}`,
           tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
           km_punto: formatNumber(punto.km),
-          guia_url: archivo.url,
-          guia_label: archivos.length > 1 ? `Abrir ${index + 1}` : 'Abrir',
-          archivos: [archivo],
-        }))
-      })
+          guia_url: null,
+          guia_label: '—',
+          archivos: [],
+        }]
+      }
+
+      return archivos.map((archivo, index) => ({
+        ...base,
+        punto: `${punto.orden}. ${punto.nombre}`,
+        tipo: punto.tipo === 'retiro' ? 'Retiro' : 'Entrega',
+        km_punto: formatNumber(punto.km),
+        guia_url: archivo.url,
+        guia_label: archivos.length > 1 ? `Abrir ${index + 1}` : 'Abrir',
+        archivos: [archivo],
+      }))
     })
+  }
+
+  function filasInforme(): FilaInforme[] {
+    return datos.rutas.flatMap(filasDeRuta)
+  }
+
+  // Agrupa rutas consecutivas del mismo camión con su subtotal de km.
+  function gruposCamion(): { camion: string; km: number; rutas: number; fin: number }[] {
+    const grupos: { camion: string; km: number; rutas: number; fin: number }[] = []
+
+    datos.rutas.forEach((ruta, index) => {
+      const ultimo = grupos[grupos.length - 1]
+      if (ultimo && ultimo.camion === ruta.camion) {
+        ultimo.km += ruta.total_km
+        ultimo.rutas += 1
+        ultimo.fin = index
+      } else {
+        grupos.push({ camion: ruta.camion, km: ruta.total_km, rutas: 1, fin: index })
+      }
+    })
+
+    return grupos
   }
 
   function handleDescargarCSV() {
@@ -193,7 +214,6 @@ export default function InformePuntos({
     if (datos.rutas.length === 0) return
     setDescargando('pdf')
 
-    const filas = filasInforme()
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const pageW = doc.internal.pageSize.getWidth()
     const pageH = doc.internal.pageSize.getHeight()
@@ -247,19 +267,53 @@ export default function InformePuntos({
       'Guía',
     ]
 
-    const body = filas.map((fila) => [
-      fila.camion,
-      ...(esAdmin ? [fila.cliente] : []),
-      fila.chofer,
-      toChileanDate(fila.fecha),
-      formatNumber(fila.km_inicio),
-      fila.punto,
-      fila.tipo,
-      fila.km_punto,
-      fila.km_final,
-      formatNumber(fila.total_km),
-      fila.guia_url ? (fila.guia_label || 'Abrir') : '—',
-    ])
+    const columnas = head.length
+    const body: RowInput[] = []
+    const filaPorIndice: (FilaInforme | null)[] = []
+    const filasSubtotal = new Set<number>()
+
+    let kmGrupo = 0
+    let rutasGrupo = 0
+
+    datos.rutas.forEach((ruta, index) => {
+      for (const fila of filasDeRuta(ruta)) {
+        body.push([
+          fila.camion,
+          ...(esAdmin ? [fila.cliente] : []),
+          fila.chofer,
+          toChileanDate(fila.fecha),
+          formatNumber(fila.km_inicio),
+          fila.punto,
+          fila.tipo,
+          fila.km_punto,
+          fila.km_final,
+          formatNumber(fila.total_km),
+          fila.guia_url ? (fila.guia_label || 'Abrir') : '—',
+        ])
+        filaPorIndice.push(fila)
+      }
+
+      kmGrupo += ruta.total_km
+      rutasGrupo += 1
+
+      const siguiente = datos.rutas[index + 1]
+      if (siguiente && siguiente.camion === ruta.camion) return
+
+      body.push([
+        {
+          content: `Total ${ruta.camion} · ${rutasGrupo} ruta${rutasGrupo === 1 ? '' : 's'}`,
+          colSpan: columnas - 2,
+          styles: { halign: 'right' },
+        },
+        { content: `${formatNumber(kmGrupo)} km`, styles: { halign: 'right' } },
+        '',
+      ])
+      filaPorIndice.push(null)
+      filasSubtotal.add(body.length - 1)
+
+      kmGrupo = 0
+      rutasGrupo = 0
+    })
 
     const guiaCol = head.length - 1
     const columnStyles: Record<number, { cellWidth: number }> = esAdmin
@@ -298,9 +352,17 @@ export default function InformePuntos({
       alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles,
       margin: { left: 12, right: 12 },
+      didParseCell: (data: CellHookData) => {
+        if (data.section !== 'body' || !filasSubtotal.has(data.row.index)) return
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.fillColor = [226, 245, 236]
+        data.cell.styles.textColor = [4, 80, 58]
+        data.cell.styles.lineWidth = { top: 0.4, bottom: 0.4, left: 0, right: 0 }
+        data.cell.styles.lineColor = [16, 185, 129]
+      },
       didDrawCell: (data: CellHookData) => {
         if (data.section !== 'body' || data.column.index !== guiaCol) return
-        const fila = filas[data.row.index]
+        const fila = filaPorIndice[data.row.index]
         if (!fila?.guia_url) return
         doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, {
           url: fila.guia_url,
@@ -322,6 +384,8 @@ export default function InformePuntos({
     doc.save(nombreArchivoInforme(desde, hasta, 'pdf'))
     setTimeout(() => setDescargando(null), 500)
   }
+
+  const grupos = gruposCamion()
 
   const gridClases = esAdmin
     ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end'
@@ -517,9 +581,12 @@ export default function InformePuntos({
           </div>
 
           <div className="space-y-3">
-            {datos.rutas.map((ruta) => (
+            {datos.rutas.map((ruta, rutaIndex) => {
+              const grupo = grupos.find((g) => g.fin === rutaIndex)
+              const cierraGrupo = Boolean(grupo) && rutaIndex < datos.rutas.length - 1
+              return (
+              <Fragment key={ruta.id}>
               <div
-                key={ruta.id}
                 className="rounded-xl border overflow-hidden"
                 style={{ background: '#141414', borderColor: '#2A2A2A' }}
               >
@@ -604,7 +671,22 @@ export default function InformePuntos({
                   </div>
                 )}
               </div>
-            ))}
+              {cierraGrupo && grupo && (
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1" style={{ background: '#3A3A3A' }} />
+                  <span className="whitespace-nowrap text-xs text-zinc-500">
+                    Total <span className="font-medium text-zinc-200">{grupo.camion}</span>
+                    {' · '}
+                    {grupo.rutas} ruta{grupo.rutas === 1 ? '' : 's'}
+                    {' · '}
+                    <span className="font-medium text-emerald-400">+{formatNumber(grupo.km)} km</span>
+                  </span>
+                  <div className="h-px flex-1" style={{ background: '#3A3A3A' }} />
+                </div>
+              )}
+              </Fragment>
+              )
+            })}
           </div>
         </>
       )}

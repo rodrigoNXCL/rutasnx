@@ -64,6 +64,7 @@
 | 2026-11-10 | Subadmin por empresa: rol + `subadmin_camiones` y filtro por camiones en APIs admin | Desplegada | Version ID `600565a7-d294-4b57-ab73-337952eab1a5`; aplicar migración `20261110_subadmin` en Supabase |
 | 2026-11-10 | Chofer multi-camión: selección de asignación al iniciar y validación de camión asignado | Desplegada | Version ID `600565a7-d294-4b57-ab73-337952eab1a5` |
 | 2026-11-14 | Correcciones: acceso de chofer, subadmin solo lectura, 401/403, dedupe/selector de camión | Desplegada | Version ID `95cffdcf-f90c-4e39-bbf7-425c9fb2154f` |
+| 2026-11-14 | Informe de puntos: separador con subtotal de km al cambiar de camión (vista y PDF) | Desplegada | Version ID `2697de05-2823-4e52-9294-0454d36cf2ed` |
 | 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
 | 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
@@ -195,7 +196,7 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
-- **Último deploy**: 2026-11-14, Version ID `95cffdcf-f90c-4e39-bbf7-425c9fb2154f` (acceso de chofer, subadmin solo lectura, 401/403 y selector de camión)
+- **Último deploy**: 2026-11-14, Version ID `2697de05-2823-4e52-9294-0454d36cf2ed` (informe de puntos con separador y subtotal de km por camión)
 
 ## Historial de Cambios
 
