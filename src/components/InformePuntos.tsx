@@ -165,18 +165,85 @@ export default function InformePuntos({
     return datos.rutas.flatMap(filasDeRuta)
   }
 
-  // Agrupa rutas consecutivas del mismo camión con su subtotal de km.
-  function gruposCamion(): { camion: string; km: number; rutas: number; fin: number }[] {
-    const grupos: { camion: string; km: number; rutas: number; fin: number }[] = []
+  // Agrupa rutas consecutivas del mismo camión con su subtotal de km y documentos.
+  function gruposCamion(): {
+    camion: string
+    km: number
+    documentos: number
+    rutas: number
+    fin: number
+  }[] {
+    const grupos: {
+      camion: string
+      km: number
+      documentos: number
+      rutas: number
+      fin: number
+    }[] = []
 
     datos.rutas.forEach((ruta, index) => {
       const ultimo = grupos[grupos.length - 1]
       if (ultimo && ultimo.camion === ruta.camion) {
         ultimo.km += ruta.total_km
+        ultimo.documentos += documentosDeRuta(ruta)
         ultimo.rutas += 1
         ultimo.fin = index
       } else {
-        grupos.push({ camion: ruta.camion, km: ruta.total_km, rutas: 1, fin: index })
+        grupos.push({
+          camion: ruta.camion,
+          km: ruta.total_km,
+          documentos: documentosDeRuta(ruta),
+          rutas: 1,
+          fin: index,
+        })
+      }
+    })
+
+    return grupos
+  }
+
+  // Cantidad de documentos (imágenes/PDF) registrados en una ruta.
+  function documentosDeRuta(ruta: RutaPuntos): number {
+    return ruta.puntos.reduce((total, punto) => {
+      if ((punto.archivos?.length ?? 0) > 0) return total + punto.archivos.length
+      return total + (punto.guia_url ? 1 : 0)
+    }, 0)
+  }
+
+  // Agrupa rutas consecutivas del mismo camión y día con su total de km y documentos.
+  function gruposDia(): {
+    camion: string
+    fecha: string
+    km: number
+    documentos: number
+    rutas: number
+    fin: number
+  }[] {
+    const grupos: {
+      camion: string
+      fecha: string
+      km: number
+      documentos: number
+      rutas: number
+      fin: number
+    }[] = []
+
+    datos.rutas.forEach((ruta, index) => {
+      const ultimo = grupos[grupos.length - 1]
+      if (ultimo && ultimo.camion === ruta.camion && ultimo.fecha === ruta.fecha) {
+        ultimo.km += ruta.total_km
+        ultimo.documentos += documentosDeRuta(ruta)
+        ultimo.rutas += 1
+        ultimo.fin = index
+      } else {
+        grupos.push({
+          camion: ruta.camion,
+          fecha: ruta.fecha,
+          km: ruta.total_km,
+          documentos: documentosDeRuta(ruta),
+          rutas: 1,
+          fin: index,
+        })
       }
     })
 
@@ -270,10 +337,14 @@ export default function InformePuntos({
     const columnas = head.length
     const body: RowInput[] = []
     const filaPorIndice: (FilaInforme | null)[] = []
-    const filasSubtotal = new Set<number>()
+    const filasCamion = new Set<number>()
+    const filasDia = new Set<number>()
 
-    let kmGrupo = 0
-    let rutasGrupo = 0
+    let kmCamion = 0
+    let rutasCamion = 0
+    let documentosCamion = 0
+    let kmDia = 0
+    let documentosDia = 0
 
     datos.rutas.forEach((ruta, index) => {
       for (const fila of filasDeRuta(ruta)) {
@@ -293,26 +364,50 @@ export default function InformePuntos({
         filaPorIndice.push(fila)
       }
 
-      kmGrupo += ruta.total_km
-      rutasGrupo += 1
+      kmCamion += ruta.total_km
+      rutasCamion += 1
+      documentosCamion += documentosDeRuta(ruta)
+      kmDia += ruta.total_km
+      documentosDia += documentosDeRuta(ruta)
 
       const siguiente = datos.rutas[index + 1]
-      if (siguiente && siguiente.camion === ruta.camion) return
+      const mismoCamion = Boolean(siguiente) && siguiente.camion === ruta.camion
+      const mismoDia = mismoCamion && siguiente.fecha === ruta.fecha
+
+      if (!mismoDia) {
+        body.push([
+          {
+            content: `Día ${toChileanDate(ruta.fecha)} · ${documentosDia} documento${documentosDia === 1 ? '' : 's'}`,
+            colSpan: columnas - 2,
+            styles: { halign: 'right' },
+          },
+          { content: `${formatNumber(kmDia)} km`, styles: { halign: 'right' } },
+          '',
+        ])
+        filaPorIndice.push(null)
+        filasDia.add(body.length - 1)
+
+        kmDia = 0
+        documentosDia = 0
+      }
+
+      if (mismoCamion) return
 
       body.push([
         {
-          content: `Total ${ruta.camion} · ${rutasGrupo} ruta${rutasGrupo === 1 ? '' : 's'}`,
+          content: `Total ${ruta.camion} · ${rutasCamion} ruta${rutasCamion === 1 ? '' : 's'} · ${documentosCamion} documento${documentosCamion === 1 ? '' : 's'}`,
           colSpan: columnas - 2,
           styles: { halign: 'right' },
         },
-        { content: `${formatNumber(kmGrupo)} km`, styles: { halign: 'right' } },
+        { content: `${formatNumber(kmCamion)} km`, styles: { halign: 'right' } },
         '',
       ])
       filaPorIndice.push(null)
-      filasSubtotal.add(body.length - 1)
+      filasCamion.add(body.length - 1)
 
-      kmGrupo = 0
-      rutasGrupo = 0
+      kmCamion = 0
+      rutasCamion = 0
+      documentosCamion = 0
     })
 
     const guiaCol = head.length - 1
@@ -353,12 +448,26 @@ export default function InformePuntos({
       columnStyles,
       margin: { left: 12, right: 12 },
       didParseCell: (data: CellHookData) => {
-        if (data.section !== 'body' || !filasSubtotal.has(data.row.index)) return
+        if (data.section !== 'body') return
+
+        const esCamion = filasCamion.has(data.row.index)
+        const esDia = filasDia.has(data.row.index)
+        if (!esCamion && !esDia) return
+
         data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.fillColor = [226, 245, 236]
-        data.cell.styles.textColor = [4, 80, 58]
-        data.cell.styles.lineWidth = { top: 0.4, bottom: 0.4, left: 0, right: 0 }
-        data.cell.styles.lineColor = [16, 185, 129]
+
+        if (esCamion) {
+          data.cell.styles.fillColor = [226, 245, 236]
+          data.cell.styles.textColor = [4, 80, 58]
+          data.cell.styles.lineWidth = { top: 0.4, bottom: 0.4, left: 0, right: 0 }
+          data.cell.styles.lineColor = [16, 185, 129]
+          return
+        }
+
+        data.cell.styles.fillColor = [240, 240, 240]
+        data.cell.styles.textColor = [60, 60, 60]
+        data.cell.styles.lineWidth = { top: 0.2, bottom: 0.2, left: 0, right: 0 }
+        data.cell.styles.lineColor = [170, 170, 170]
       },
       didDrawCell: (data: CellHookData) => {
         if (data.section !== 'body' || data.column.index !== guiaCol) return
@@ -386,6 +495,7 @@ export default function InformePuntos({
   }
 
   const grupos = gruposCamion()
+  const dias = gruposDia()
 
   const gridClases = esAdmin
     ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end'
@@ -583,6 +693,7 @@ export default function InformePuntos({
           <div className="space-y-3">
             {datos.rutas.map((ruta, rutaIndex) => {
               const grupo = grupos.find((g) => g.fin === rutaIndex)
+              const dia = dias.find((g) => g.fin === rutaIndex)
               const cierraGrupo = Boolean(grupo) && rutaIndex < datos.rutas.length - 1
               return (
               <Fragment key={ruta.id}>
@@ -671,15 +782,35 @@ export default function InformePuntos({
                   </div>
                 )}
               </div>
+              {dia && (
+                <div
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-2"
+                  style={{ background: '#1A1A1A', border: '1px solid #262626' }}
+                >
+                  <span className="text-xs text-zinc-500">
+                    Total día{' '}
+                    <span className="font-medium text-zinc-300">{toChileanDate(dia.fecha)}</span>
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    <span className="font-medium text-emerald-400">+{formatNumber(dia.km)} km</span>
+                    {' · '}
+                    <span className="font-medium text-zinc-300">{dia.documentos}</span>{' '}
+                    documento{dia.documentos === 1 ? '' : 's'}
+                  </span>
+                </div>
+              )}
               {cierraGrupo && grupo && (
                 <div className="flex items-center gap-3">
                   <div className="h-px flex-1" style={{ background: '#3A3A3A' }} />
                   <span className="whitespace-nowrap text-xs text-zinc-500">
-                    Total <span className="font-medium text-zinc-200">{grupo.camion}</span>
+                    Total camión <span className="font-medium text-zinc-200">{grupo.camion}</span>
                     {' · '}
                     {grupo.rutas} ruta{grupo.rutas === 1 ? '' : 's'}
                     {' · '}
                     <span className="font-medium text-emerald-400">+{formatNumber(grupo.km)} km</span>
+                    {' · '}
+                    <span className="font-medium text-zinc-300">{grupo.documentos}</span>{' '}
+                    documento{grupo.documentos === 1 ? '' : 's'}
                   </span>
                   <div className="h-px flex-1" style={{ background: '#3A3A3A' }} />
                 </div>
