@@ -67,6 +67,7 @@
 | 2026-11-14 | Informe de puntos: separador con subtotal de km al cambiar de camión (vista y PDF) | Desplegada | Version ID `2697de05-2823-4e52-9294-0454d36cf2ed` |
 | 2026-11-25 | Informe de puntos: total por día y camión (km + documentos) en vista y PDF | Desplegada | Version ID `76daf956-02a7-406d-8cdd-365f8924951c` |
 | 2026-11-27 | Sincronización offline: puntos pendientes se aceptan en rutas ya cerradas si fueron capturados dentro del período de la ruta; inicio de ruta idempotente; bloqueo de cierre con puntos pendientes | Desplegada | Version ID `cfced408-cf1c-44d8-89e1-18271a901d2d` |
+| 2026-11-27 | Navegación admin: menús desplegables Operación (Rutas, Reportes, Valorizador) y Administración (resto) | Desplegada | Version ID `83d394a9-f959-4585-98ae-8082b292adcc` |
 | 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
 | 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
@@ -198,7 +199,7 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
-- **Último deploy**: 2026-11-27, Version ID `cfced408-cf1c-44d8-89e1-18271a901d2d` (sincronización offline de puntos en rutas cerradas e inicio de ruta idempotente)
+- **Último deploy**: 2026-11-27, Version ID `83d394a9-f959-4585-98ae-8082b292adcc` (navegación admin con menús Operación y Administración)
 
 ## Historial de Cambios
 

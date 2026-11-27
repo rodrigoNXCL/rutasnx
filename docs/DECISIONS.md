@@ -108,6 +108,14 @@
 - `/admin/valorizador`: gestión (CRUD) + historial de cambios.
 - El tab "Valorizador KM" de Reportes muestra un informe como el Resumen Diario pero con columnas adicionales: **valor por km** aplicable a la fecha y **valor total** (km × valor), con totalización de la columna valor total.
 
+### Navegación del Panel Admin
+- La barra superior agrupa los módulos en dos menús desplegables para mantener el panel ordenado:
+  - **Operación**: Rutas, Reportes y Valorizador.
+  - **Administración**: Jornadas, Camiones, Chóferes, Clientes, Servicios, Tipos de servicio y Usuarios; Empresas solo para superadmin.
+- **Dashboard** queda como acceso directo.
+- El **subadmin** solo ve Dashboard y el menú Operación (Rutas y Reportes).
+- Implementado en `src/app/admin/admin-nav.tsx` (cliente): resalta la sección activa y cierra al hacer clic fuera o presionar Escape.
+
 ### Multi-usuario por Cliente
 - Tabla `cliente_usuarios` (cliente_id, usuario_id): relación muchos a muchos entre clientes y usuarios de login.
 - Se mantiene `clientes.usuario_id` como usuario principal (backward compat).
