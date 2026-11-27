@@ -2,14 +2,14 @@
 
 ## Paso Actual del Plan de Desarrollo
 
-**Paso 4** - v2.6 desplegada: puntos multiarchivo, local-first y confiabilidad de sincronización (2026-11-09)
+**Paso 5** - Registro en nombre de chóferes y operación multi-rol (2026-11-27)
 
 ## Estado General
 
 - [x] Estructura de directorios creada
 - [x] Tipos TypeScript definidos v2.0
 - [x] Auth propia implementada (`src/lib/auth.ts`)
-- [x] Middleware actualizado para 4 roles
+- [x] Middleware actualizado para 5 roles (`superadmin`, `admin`, `subadmin`, `chofer`, `cliente`)
 - [x] SQL v2.0 ejecutado en Supabase
 - [x] Asignaciones table creada y funcional
 - [x] Superadmin: dashboard, empresas CRUD, admin management
@@ -46,11 +46,15 @@
 - [x] Rol `subadmin` por empresa con acceso a rutas/reportes y registro acotado a camiones asignados
 - [x] Chofer puede operar varios camiones (selector al iniciar, validado contra asignaciones)
 - [x] Admin/subadmin: registro de rutas, puntos y gastos en nombre de chóferes autorizados
+- [x] Navegación admin con menús desplegables **Operación** y **Administración**
+- [x] Dashboard admin con métricas de flota y rutas en curso/terminadas (`/api/admin/stats`)
 
 ## Registro de Avance
 
 | Fecha | Hito | Estado | Evidencia |
 |-------|------|--------|-----------|
+| 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
+| 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 | 2026-11-09 | Puntos con hasta 5 imágenes/documentos (JPG/PNG/WEBP/PDF) | Desplegado | Commit `59962d6`; bucket `guias` con PDF |
 | 2026-11-09 | Registro local-first, timeout 8 s, aviso de red lenta, reintento y descarte | Desplegado | Commit `59962d6` |
 | 2026-11-09 | Informes admin/cliente, CSV y PDF muestran todos los archivos | Desplegado | Commit `59962d6` |
@@ -70,8 +74,6 @@
 | 2026-11-27 | Sincronización offline: puntos pendientes se aceptan en rutas ya cerradas si fueron capturados dentro del período de la ruta; inicio de ruta idempotente; bloqueo de cierre con puntos pendientes | Desplegada | Version ID `cfced408-cf1c-44d8-89e1-18271a901d2d` |
 | 2026-11-27 | Navegación admin: menús desplegables Operación (Rutas, Reportes, Valorizador) y Administración (resto) | Desplegada | Version ID `83d394a9-f959-4585-98ae-8082b292adcc` |
 | 2026-11-27 | Registro en nombre de chóferes: `/admin/registros` para iniciar/cerrar rutas, puntos y gastos; admin sobre toda la empresa y subadmin solo con chóferes/camiones autorizados | Desplegada | Version ID `1a22546a-1395-4d2e-9ef3-35394a3cd834` |
-| 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
-| 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
 ## Guardrails (No Retroceder)
 
@@ -87,6 +89,7 @@
 - El subadmin **sí ve los gastos** de sus camiones (es personal de la empresa, no del cliente); los informes/resumen usan las APIs de admin filtradas por camiones. No aplicar la restricción de gastos del cliente.
 - El chofer solo puede iniciar ruta con un camión que tenga asignación activa (`asignaciones`); no permitir camiones arbitrarios.
 - El admin/superadmin puede iniciar/cerrar rutas y agregar puntos/gastos en nombre de cualquier chófer de su empresa; el subadmin solo con sus chóferes/camiones autorizados. Un gestor puede completar rutas cerradas.
+- Mantener `/admin/registros` como el canal de escritura del subadmin. `/admin/rutas` sigue siendo solo lectura para ese rol.
 
 ## Estructura de Rutas Implementada
 
@@ -166,37 +169,65 @@ Reglas:
 
 ## APIs Implementadas
 
-- `POST /api/viajes/iniciar` - Inicia el día (km inicio + foto km)
-- `GET /api/viajes/hoy` - Obtiene viaje activo del día
-- `PUT /api/viajes/[id]/terminar` - Termina el día (km término + foto + gastos en lote)
-- `PUT /api/viajes/[id]` - Edita km inicio/término, observaciones y fotos de km
-- `POST /api/gastos` - Registra gastos de un viaje
-- `PATCH /api/gastos/[id]` - Edita un gasto (tipo, monto, descripción, foto)
-- `DELETE /api/gastos/[id]` - Elimina un gasto
-- `GET /api/viajes/[id]/puntos` - Lista puntos de una ruta (`incluir_anulados=true` para admin)
-- `POST /api/viajes/[id]/puntos` - Crea un punto (evidencia opcional, odómetro validado, hasta 5 archivos en `archivos`; acepta `id` de cliente para reintentos idempotentes y `captured_at`)
-- `PUT /api/viajes/[id]/puntos/[puntoId]` - Edita un punto (motivo obligatorio, auditoría de `archivos_anterior/nuevo`)
-- `DELETE /api/viajes/[id]/puntos/[puntoId]` - Anula un punto (motivo obligatorio, auditoría)
-- `GET /api/puntos/sugerencias` - Autocompletado de puntos por cliente (normalizado)
-- `GET /api/tipos-servicio` / `POST /api/tipos-servicio` - Catálogo de tipos de servicio
-- `PUT /api/tipos-servicio/[id]` / `DELETE /api/tipos-servicio/[id]` - Edición/desactivación lógica
-- `POST /api/upload` - Upload de fotos y documentos (hasta 5 archivos; PDF solo en bucket `guias`)
-- `GET /api/cliente/servicios` - Servicios y rutas del cliente logueado (vía `cliente_usuarios`, gastos filtrados solo a `peaje`, incluye puntos y guías de rutas por puntos)
-- `GET /api/cliente/informes` - Informe de rutas terminadas del cliente en un periodo (solo gastos `peaje`)
-- `GET /api/cliente/informes/puntos` - Informe de rutas por puntos del cliente (fecha, camión, chofer, puntos y guías)
-- `GET /api/admin/informes` - Informe de rutas terminadas de la empresa en un periodo (todos los gastos + URLs de imágenes km/gastos)
-- `GET /api/admin/informes/puntos` - Informe de puntos y guías de la empresa (filtros cliente/servicio/camión/chofer)
+### Autenticación
+- `POST /api/auth/login` - Inicio de sesión (cookie `rutasnx_session`)
+- `POST /api/auth/logout` - Cierre de sesión
+- `GET /api/auth/me` - Sesión y rol actual
+- `POST /api/auth/bootstrap` - Crea el primer `superadmin` si aún no existe
+
+### Gestión de la empresa (admin/superadmin)
+- `GET/POST /api/camiones` · `PUT/DELETE /api/camiones/[id]` - CRUD de camiones
+- `GET/POST /api/choferes` · `PUT/DELETE /api/choferes/[id]` - CRUD de chóferes (incluye alta/reset de acceso)
+- `GET/POST /api/clientes` · `PUT/DELETE /api/clientes/[id]` - CRUD de clientes
+- `POST /api/clientes/[id]/usuarios` · `DELETE /api/clientes/[id]/usuarios/[usuarioId]` - Multi-usuario por cliente
+- `GET/POST /api/servicios` · `PUT/DELETE /api/servicios/[id]` - CRUD de servicios
+- `GET/POST /api/asignaciones` · `PUT/DELETE /api/asignaciones/[id]` - Asignaciones chofer + camión + servicio
+- `GET/POST /api/tipos-servicio` · `PUT/DELETE /api/tipos-servicio/[id]` - Catálogo de tipos de servicio (`reparto`/`fruta`)
 - `GET /api/admin/usuarios` - Usuarios (cuentas de login) de la empresa, con filtro por activos/rol
-- `GET/POST /api/admin/empresas` - Lista/crea empresas (solo `superadmin`)
-- `GET /api/admin/resumen-diario` - Resumen diario de la empresa (fecha, km, valor km, valor total, peajes, petróleo, otros)
-- `GET /api/cliente/resumen-diario` - Resumen diario del cliente (fecha, km, peajes)
-- `GET/POST/PUT/DELETE /api/admin/valorizador` - CRUD de valorizaciones de km (con auditoría en `valor_km_historial`)
+- `GET/POST /api/admin/subadmins` · `PATCH /api/admin/subadmins/[id]` - Lista/crea/activa-desactiva subadmins
+- `PUT /api/admin/subadmins/[id]/camiones` - Asigna camiones a un subadmin
+- `GET/POST /api/admin/valorizador` · `PUT/DELETE /api/admin/valorizador/[id]` - CRUD de valorizaciones de km (auditoría en `valor_km_historial`)
 - `GET /api/admin/valorizador/historial` - Historial de cambios del valorizador
-- `POST /api/clientes/[id]/usuarios` - Agregar usuario a un cliente
-- `DELETE /api/clientes/[id]/usuarios/[usuarioId]` - Quitar usuario de un cliente
-- `GET/POST /api/admin/subadmins` - Lista/crea subadmins de la empresa (solo admin)
-- `PUT /api/admin/subadmins/[id]/camiones` - Asigna camiones a un subadmin (solo admin)
-- `GET /s/[bucket]/[file]` - Redirect a la imagen real en Supabase Storage (URL corta de respaldos)
+
+### Superadmin (empresas)
+- `GET/POST /api/empresas` · `PUT/DELETE /api/empresas/[id]` - CRUD de empresas
+- `GET/POST /api/empresas/[id]/admins` · `PUT/DELETE /api/empresas/[id]/admins/[adminId]` - Admins por empresa
+- `GET/POST /api/admin/empresas` - Listado/creación de empresas usado por el panel superadmin
+
+### Operación de rutas
+- `POST /api/viajes/iniciar` - Inicia una ruta (chofer con asignación activa; admin/subadmin con `chofer_id` autorizado)
+- `GET /api/viajes/hoy` - Ruta abierta del chofer (soporta cruce de medianoche)
+- `GET /api/viajes/fecha?fecha=YYYY-MM-DD` - Rutas del chofer en una fecha (`viajes[]`; mantiene `viaje` por compatibilidad)
+- `GET /api/viajes` · `POST /api/viajes` - Historial y registro simple del chofer
+- `PUT /api/viajes/[id]/terminar` - Cierra la ruta (km término + foto + gastos en lote); valida flujo por puntos
+- `PUT /api/viajes/[id]` - Edita km inicio/término, observaciones y fotos de km
+- `GET/POST /api/viajes/[id]/puntos` - Lista/crea puntos (`incluir_anulados=true` para admin); evidencia opcional, hasta 5 archivos, `captured_at` e idempotencia por UUID
+- `PUT/DELETE /api/viajes/[id]/puntos/[puntoId]` - Edita/anula un punto (motivo obligatorio, auditoría)
+- `GET /api/puntos/sugerencias` - Autocompletado de puntos por cliente (texto normalizado)
+- `POST /api/gastos` · `PATCH/DELETE /api/gastos/[id]` - Alta/edición/eliminación de gastos (abiertas o cerradas)
+- `POST /api/upload` - Subida de fotos y documentos (hasta 5 archivos; PDF solo en bucket `guias`)
+
+### Consultas e informes (admin/subadmin)
+- `GET /api/admin/stats` - Métricas del dashboard y rutas en curso/terminadas
+- `GET /api/admin/viajes` - Rutas de la empresa por rango de fechas
+- `GET /api/admin/registros` - Catálogos filtrados y rutas por chófer/fecha para `/admin/registros`
+- `GET /api/admin/informes` - Informe de rutas terminadas (todos los gastos + URLs de imágenes)
+- `GET /api/admin/informes/puntos` - Informe de puntos y guías (filtros cliente/servicio/camión/chofer)
+- `GET /api/admin/resumen-diario` - Resumen diario (km, valor km, valor total, peajes, petróleo, otros)
+
+### Chofer
+- `GET /api/chofer/asignacion` - Asignaciones activas (camión + servicio + tipo)
+- `GET /api/chofer/camiones` - Camiones activos de la empresa
+- `GET /api/chofer/servicios` - Servicios activos de la empresa
+
+### Cliente
+- `GET /api/cliente/servicios` - Servicios y rutas del cliente (vía `cliente_usuarios`; solo gastos `peaje`; incluye puntos y guías)
+- `GET /api/cliente/informes` - Informe de rutas terminadas en un periodo (solo gastos `peaje`; la UI usa el informe de puntos)
+- `GET /api/cliente/informes/puntos` - Informe de rutas por puntos (fecha, camión, chofer, puntos y guías)
+- `GET /api/cliente/resumen-diario` - Resumen diario del cliente (fecha, km, peajes)
+
+### Storage
+- `GET /s/[bucket]/[file]` - Redirect a la imagen/archivo real en Supabase Storage (URL corta de respaldos)
 
 ## Deploy
 
@@ -231,7 +262,7 @@ Detalles detectados durante las pruebas (2026-11-14) para corregir de forma orde
 | 4 | No había activar/desactivar subadmin ni reset de clave. Agregado `PATCH /api/admin/subadmins/[id]` + botones en Usuarios. | `src/app/api/admin/subadmins/[id]/route.ts`, `src/app/admin/usuarios/page.tsx` | Desplegado |
 | 5 | No se validaba que el servicio correspondiera al camión asignado al iniciar ruta. Ahora se valida camión+servicio. | `src/app/api/viajes/iniciar/route.ts` | Desplegado |
 | 6 | Verificar en runtime el informe PDF/CSV con un punto de 2+ archivos: deben verse "Abrir 1", "Abrir 2" (una fila por archivo). | `src/components/InformePuntos.tsx` | Pendiente verificación runtime |
-| 7 | Verificar en runtime el subadmin (dashboard/rutas/reportes filtrados por sus camiones, **incluyendo gastos**) y el flujo chofer multi-camión. | — | Pendiente verificación runtime |
+| 7 | Verificar en runtime el subadmin (dashboard/rutas/reportes filtrados por sus camiones, **incluyendo gastos**) y el flujo chofer multi-camión. El registro de rutas/puntos/gastos para subadmin ya está implementado y desplegado en `/admin/registros`. | — | Pendiente verificación runtime |
 | 8 | `/api/cliente/informes` quedó sin uso (la página `/cliente/informes` redirige a puntos y guías): evaluar eliminar o mantener por compatibilidad. | `src/app/api/cliente/informes/route.ts` | Pendiente (decisión) |
 | 9 | Bloque "Subadmins" en `/admin/usuarios` sin estado de carga propio. Agregado estado de carga. | `src/app/admin/usuarios/page.tsx` | Desplegado |
 | 10 | Tras cada deploy, la PWA puede requerir hard refresh para tomar el nuevo shell/JS. | `public/sw.js` | Nota operativa |
@@ -239,6 +270,7 @@ Detalles detectados durante las pruebas (2026-11-14) para corregir de forma orde
 | 12 | Bucket `guias` es público: evaluar bucket privado con URLs firmadas. | Supabase Storage | Pendiente (decisión) |
 | 13 | El chofer veía una patente “repetida” con badge Fruta: la UI mostraba las tarjetas de selección y además un panel del camión seleccionado. Se eliminó el panel duplicado y las tarjetas ahora muestran patente, marca, servicio y tipo; la API deduplica asignaciones idénticas (camión+servicio). | `src/app/chofer/registro/page.tsx`, `src/app/api/chofer/asignacion/route.ts` | Desplegado |
 | 14 | Ruta CTYL-61 del 26/11/2026 quedó con un punto pendiente en el teléfono porque la ruta se cerró antes de sincronizarlo y el servidor respondía “La ruta ya fue cerrada”. Ahora `POST /api/viajes/[id]/puntos` acepta puntos capturados dentro del período de la ruta (`iniciado_at`–`cerrado_at`) aunque esté cerrada; el inicio de ruta es idempotente ante reintentos; y el cierre se bloquea si quedan puntos pendientes en el dispositivo. | `src/app/api/viajes/[id]/puntos/route.ts`, `src/app/api/viajes/iniciar/route.ts`, `src/app/chofer/registro/page.tsx`, `src/app/chofer/registro/PuntosRuta.tsx` | Desplegado |
+| 15 | Registro en nombre de chóferes (`/admin/registros`): iniciar/cerrar rutas, agregar/corregir puntos y gestionar gastos para admin y subadmin autorizado. Pendiente prueba runtime con datos reales (especialmente subadmin y rutas cerradas). | `src/app/admin/registros/page.tsx`, `src/app/api/admin/registros/route.ts`, `src/lib/subadmin.ts`, `src/lib/viaje-access.ts` | Desplegado; pendiente verificación runtime |
 
 **Criterios confirmados:**
 - El **subadmin pertenece a la empresa** (no al cliente): **sí ve los gastos** de sus camiones asignados (informes y resumen diario con todos los tipos de gasto), acotado por `subadmin_camiones`.
