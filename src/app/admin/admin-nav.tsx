@@ -93,6 +93,7 @@ export default function AdminNav({ rol }: { rol: Rol }) {
   }
 
   const operacion: NavItem[] = [
+    { href: '/admin/registros', label: 'Registros' },
     { href: '/admin/rutas', label: 'Rutas' },
     { href: '/admin/reportes', label: 'Reportes' },
     ...(esSubadmin ? [] : [{ href: '/admin/valorizador', label: 'Valorizador' }]),

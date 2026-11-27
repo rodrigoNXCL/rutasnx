@@ -1,43 +1,30 @@
 import { NextResponse } from 'next/server'
 import { errorResponse } from '@/lib/api-error'
-import { requireChofer } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getViajeAcceso } from '@/lib/viaje-access'
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireChofer()
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
     const { id } = await params
 
-    const { data: chofer } = await supabase
-      .from('choferes')
-      .select('id, empresa_id')
-      .eq('usuario_id', session.id)
-      .single()
+    const acceso = await getViajeAcceso(session, id)
 
-    if (!chofer) {
-      return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
+    if ('error' in acceso) {
+      return NextResponse.json({ error: acceso.error }, { status: acceso.status })
     }
 
+    const viajeActual = acceso.viaje
     const body = await request.json()
     const { km_termino, foto_km_termino, observaciones, gastos } = body
 
     if (km_termino === undefined) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
-    }
-
-    const { data: viajeActual } = await supabase
-      .from('viajes')
-      .select('km_inicio, km_termino, estado, observaciones, tipo_servicio_id')
-      .eq('id', id)
-      .eq('chofer_id', chofer.id)
-      .single()
-
-    if (!viajeActual) {
-      return NextResponse.json({ error: 'Viaje no encontrado' }, { status: 404 })
     }
 
     if (viajeActual.estado === 'terminado') {
@@ -102,7 +89,6 @@ export async function PUT(
         cerrado_by: session.id,
       })
       .eq('id', id)
-      .eq('chofer_id', chofer.id)
       .select()
       .single()
 
@@ -114,7 +100,7 @@ export async function PUT(
       .from('viaje_historial')
       .insert({
         viaje_id: id,
-        empresa_id: chofer.empresa_id,
+        empresa_id: viajeActual.empresa_id,
         accion: 'cerrado',
         km_inicio_anterior: viajeActual.km_inicio,
         km_inicio_nuevo: viajeActual.km_inicio,
@@ -144,7 +130,7 @@ export async function PUT(
           monto: parseInt(String(g.monto)),
           descripcion: g.descripcion || null,
           foto_url: g.foto_url || null,
-          empresa_id: chofer.empresa_id,
+          empresa_id: viajeActual.empresa_id,
         }))
 
       if (gastosInsert.length > 0) {

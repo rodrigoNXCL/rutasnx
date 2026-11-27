@@ -43,8 +43,9 @@
 - [x] Suite de pruebas automatizadas (Vitest)
 - [x] Puntos con múltiples imágenes/documentos (hasta 5, PDF incluido, cámara/galería)
 - [x] Registro local-first y aviso de conexión lenta en puntos
-- [x] Rol `subadmin` por empresa con acceso solo a rutas/reportes de camiones asignados
+- [x] Rol `subadmin` por empresa con acceso a rutas/reportes y registro acotado a camiones asignados
 - [x] Chofer puede operar varios camiones (selector al iniciar, validado contra asignaciones)
+- [x] Admin/subadmin: registro de rutas, puntos y gastos en nombre de chóferes autorizados
 
 ## Registro de Avance
 
@@ -68,6 +69,7 @@
 | 2026-11-25 | Informe de puntos: total por día y camión (km + documentos) en vista y PDF | Desplegada | Version ID `76daf956-02a7-406d-8cdd-365f8924951c` |
 | 2026-11-27 | Sincronización offline: puntos pendientes se aceptan en rutas ya cerradas si fueron capturados dentro del período de la ruta; inicio de ruta idempotente; bloqueo de cierre con puntos pendientes | Desplegada | Version ID `cfced408-cf1c-44d8-89e1-18271a901d2d` |
 | 2026-11-27 | Navegación admin: menús desplegables Operación (Rutas, Reportes, Valorizador) y Administración (resto) | Desplegada | Version ID `83d394a9-f959-4585-98ae-8082b292adcc` |
+| 2026-11-27 | Registro en nombre de chóferes: `/admin/registros` para iniciar/cerrar rutas, puntos y gastos; admin sobre toda la empresa y subadmin solo con chóferes/camiones autorizados | Desplegada | Version ID `1a22546a-1395-4d2e-9ef3-35394a3cd834` |
 | 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
 | 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
@@ -81,9 +83,10 @@
 - No recrear la ruta `580a5b1b-456e-4c6f-af10-cf6a0ca7a118` ni la foto `km-fotos/1794222187565-ttwcqkc53ok.jpg`.
 - Mantener `/api/upload` con subida múltiple y el bucket `guias` con `application/pdf` permitido.
 - Antes de desplegar: `npx tsc --noEmit`, `npm test` (21 pruebas) y `npm run build`; para Cloudflare, `npm run build:vinext` y `npm run deploy:prod`.
-- El subadmin solo accede a Dashboard, Rutas y Reportes; las APIs de lectura filtran por `subadmin_camiones`. No exponer endpoints de gestión a subadmin.
+- El subadmin accede a Dashboard, Registros, Rutas y Reportes; las APIs de lectura filtran por `subadmin_camiones`. Puede registrar rutas/puntos/gastos solo para chóferes y camiones autorizados (derivados de sus camiones e historial). No exponer endpoints de gestión a subadmin.
 - El subadmin **sí ve los gastos** de sus camiones (es personal de la empresa, no del cliente); los informes/resumen usan las APIs de admin filtradas por camiones. No aplicar la restricción de gastos del cliente.
 - El chofer solo puede iniciar ruta con un camión que tenga asignación activa (`asignaciones`); no permitir camiones arbitrarios.
+- El admin/superadmin puede iniciar/cerrar rutas y agregar puntos/gastos en nombre de cualquier chófer de su empresa; el subadmin solo con sus chóferes/camiones autorizados. Un gestor puede completar rutas cerradas.
 
 ## Estructura de Rutas Implementada
 
@@ -97,6 +100,7 @@
 - `/admin/clientes` - CRUD clientes
 - `/admin/servicios` - CRUD servicios
 - `/admin/rutas` - Rutas y puntos (filtros, detalle y corrección/anulación)
+- `/admin/registros` - Registro de rutas, puntos y gastos en nombre de un chófer (admin/subadmin autorizado)
 - `/admin/empresas` - Crear empresa + usuario admin automático (solo superadmin)
 - `/admin/tipos-servicio` - Catálogo de tipos de servicio por empresa
 - `/admin/asignaciones` - Asignar chofer+camión a servicio
@@ -199,7 +203,7 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
-- **Último deploy**: 2026-11-27, Version ID `83d394a9-f959-4585-98ae-8082b292adcc` (navegación admin con menús Operación y Administración)
+- **Último deploy**: 2026-11-27, Version ID `1a22546a-1395-4d2e-9ef3-35394a3cd834` (registro en nombre de chóferes para admin/subadmin)
 
 ## Historial de Cambios
 

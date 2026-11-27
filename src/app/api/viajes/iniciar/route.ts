@@ -1,26 +1,22 @@
 import { NextResponse } from 'next/server'
 import { errorResponse } from '@/lib/api-error'
-import { requireChofer } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  getCamionesSubadmin,
+  getChoferesSubadmin,
+  getServiciosSubadmin,
+} from '@/lib/subadmin'
 
 export async function POST(request: Request) {
   try {
-    const session = await requireChofer()
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
-
-    const { data: chofer } = await supabase
-      .from('choferes')
-      .select('id')
-      .eq('usuario_id', session.id)
-      .single()
-
-    if (!chofer) {
-      return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
-    }
 
     const body = await request.json()
     const {
       id: viajeId,
+      chofer_id,
       camion_id,
       servicio_id,
       fecha,
@@ -39,6 +35,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Odómetro inicial inválido' }, { status: 400 })
     }
 
+    let choferId: string
+
+    if (session.rol === 'chofer') {
+      const { data: chofer } = await supabase
+        .from('choferes')
+        .select('id')
+        .eq('usuario_id', session.id)
+        .single()
+
+      if (!chofer) {
+        return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
+      }
+
+      choferId = chofer.id
+    } else {
+      if (!chofer_id) {
+        return NextResponse.json({ error: 'Selecciona un chófer' }, { status: 400 })
+      }
+
+      const { data: chofer } = await supabase
+        .from('choferes')
+        .select('id')
+        .eq('id', chofer_id)
+        .eq('empresa_id', session.empresa_id)
+        .single()
+
+      if (!chofer) {
+        return NextResponse.json({ error: 'Chófer no encontrado' }, { status: 404 })
+      }
+
+      choferId = chofer.id
+    }
+
     const { data: camion } = await supabase
       .from('camiones')
       .select('id')
@@ -50,24 +79,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Camión no encontrado' }, { status: 404 })
     }
 
-    let asignacionQuery = supabase
-      .from('asignaciones')
-      .select('id')
-      .eq('chofer_id', chofer.id)
-      .eq('camion_id', camion_id)
-      .eq('activo', true)
+    if (session.rol === 'subadmin') {
+      const camiones = await getCamionesSubadmin(supabase, session)
 
-    if (servicio_id) {
-      asignacionQuery = asignacionQuery.eq('servicio_id', servicio_id)
+      if (!camiones || !camiones.includes(camion_id)) {
+        return NextResponse.json({ error: 'Camión no autorizado' }, { status: 403 })
+      }
+
+      const choferes = await getChoferesSubadmin(supabase, session)
+
+      if (!choferes || !choferes.includes(choferId)) {
+        return NextResponse.json({ error: 'Chófer no autorizado' }, { status: 403 })
+      }
+
+      if (servicio_id) {
+        const servicios = await getServiciosSubadmin(supabase, session)
+
+        if (!servicios || !servicios.includes(servicio_id)) {
+          return NextResponse.json({ error: 'Servicio no autorizado' }, { status: 403 })
+        }
+      }
     }
 
-    const { data: asignacionActiva } = await asignacionQuery.maybeSingle()
+    if (session.rol === 'chofer') {
+      let asignacionQuery = supabase
+        .from('asignaciones')
+        .select('id')
+        .eq('chofer_id', choferId)
+        .eq('camion_id', camion_id)
+        .eq('activo', true)
 
-    if (!asignacionActiva) {
-      return NextResponse.json(
-        { error: 'El camión/servicio no está asignado al chófer' },
-        { status: 400 }
-      )
+      if (servicio_id) {
+        asignacionQuery = asignacionQuery.eq('servicio_id', servicio_id)
+      }
+
+      const { data: asignacionActiva } = await asignacionQuery.maybeSingle()
+
+      if (!asignacionActiva) {
+        return NextResponse.json(
+          { error: 'El camión/servicio no está asignado al chófer' },
+          { status: 400 }
+        )
+      }
     }
 
     let servicio: {
@@ -96,7 +149,7 @@ export async function POST(request: Request) {
       .insert({
         id: viajeId || undefined,
         empresa_id: session.empresa_id,
-        chofer_id: chofer.id,
+        chofer_id: choferId,
         camion_id,
         servicio_id: servicio?.id || null,
         tipo_servicio_id: servicio?.tipo_servicio_id || null,
@@ -118,7 +171,7 @@ export async function POST(request: Request) {
         let existenteQuery = supabase
           .from('viajes')
           .select('*')
-          .eq('chofer_id', chofer.id)
+          .eq('chofer_id', choferId)
           .eq('camion_id', camion_id)
           .eq('estado', 'en_curso')
 
@@ -133,7 +186,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json(
-          { error: 'Ya tienes una ruta abierta o el camión ya está en uso' },
+          { error: 'El chófer ya tiene una ruta abierta o el camión está en uso' },
           { status: 400 }
         )
       }

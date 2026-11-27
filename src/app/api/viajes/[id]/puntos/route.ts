@@ -19,7 +19,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireRole(['chofer', 'admin', 'superadmin'])
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
     const { id } = await params
 
@@ -60,7 +60,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireRole(['chofer', 'admin', 'superadmin'])
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
     const { id } = await params
 
@@ -122,7 +122,12 @@ export async function POST(
       (iniciadoAt === null || capturadoAt.getTime() >= iniciadoAt.getTime()) &&
       (cerradoAt === null || capturadoAt.getTime() <= cerradoAt.getTime() + MARGEN_CIERRE_MS)
 
-    if (acceso.viaje.estado !== 'en_curso' && !capturadoEnRuta) {
+    // El chofer solo puede sincronizar puntos capturados mientras la ruta
+    // estaba abierta. Admin/superadmin/subadmin pueden completar o corregir
+    // rutas cerradas en nombre del chófer.
+    const esGestor = session.rol !== 'chofer'
+
+    if (acceso.viaje.estado !== 'en_curso' && !esGestor && !capturadoEnRuta) {
       return NextResponse.json(
         { error: 'La ruta ya fue cerrada' },
         { status: 400 }
@@ -163,6 +168,13 @@ export async function POST(
     if (km < acceso.viaje.km_inicio) {
       return NextResponse.json(
         { error: `El odómetro no puede ser menor al inicio de la ruta (${acceso.viaje.km_inicio} km)` },
+        { status: 400 }
+      )
+    }
+
+    if (acceso.viaje.km_termino !== null && km > acceso.viaje.km_termino) {
+      return NextResponse.json(
+        { error: `El odómetro no puede ser mayor al cierre de la ruta (${acceso.viaje.km_termino} km)` },
         { status: 400 }
       )
     }

@@ -110,11 +110,29 @@
 
 ### Navegación del Panel Admin
 - La barra superior agrupa los módulos en dos menús desplegables para mantener el panel ordenado:
-  - **Operación**: Rutas, Reportes y Valorizador.
+  - **Operación**: Registros, Rutas, Reportes y Valorizador.
   - **Administración**: Jornadas, Camiones, Chóferes, Clientes, Servicios, Tipos de servicio y Usuarios; Empresas solo para superadmin.
 - **Dashboard** queda como acceso directo.
-- El **subadmin** solo ve Dashboard y el menú Operación (Rutas y Reportes).
+- El **subadmin** solo ve Dashboard y el menú Operación (Registros, Rutas y Reportes).
 - Implementado en `src/app/admin/admin-nav.tsx` (cliente): resalta la sección activa y cierra al hacer clic fuera o presionar Escape.
+
+### Registro en Nombre de un Chófer
+- `/admin/registros` permite al admin iniciar, completar y cerrar rutas en nombre de cualquier chófer de su empresa (datos atrasados, correcciones o registros que el chófer no alcanzó a ingresar).
+- El formulario permite elegir chófer, fecha, camión y servicio; valida duplicados de ruta abierta por camión/servicio y reutiliza `PuntosRuta` para agregar/corregir puntos y el cierre de ruta.
+- El admin puede agregar gastos a rutas abiertas o cerradas mediante `POST /api/gastos` y eliminarlos con `DELETE /api/gastos/[id]`.
+- **Autorización**:
+  - `admin`/`superadmin`: cualquier chófer, camión y servicio de su empresa.
+  - `subadmin`: solo chóferes y camiones derivados de `subadmin_camiones` y su historial de asignaciones/viajes; los servicios se limitan a los vinculados a esos camiones.
+  - `chofer`: mantiene la regla existente de asignación activa para iniciar su propia ruta.
+- Los endpoints de escritura (`/api/viajes/iniciar`, `/api/viajes/[id]/terminar`, puntos, gastos y `/api/upload`) aceptan los roles gestores y validan el acceso con `getViajeAcceso`/helpers de `src/lib/subadmin.ts`.
+- Un gestor puede agregar puntos a una ruta cerrada (registro tardío); el chofer sigue limitado a puntos capturados dentro del período de la ruta.
+
+### Subadmin (alcance por camión)
+- Rol `subadmin` dentro de una empresa; el admin le asigna camiones en `subadmin_camiones`.
+- Accede a `/admin/dashboard`, `/admin/registros`, `/admin/rutas` y `/admin/reportes`; no a gestión (camiones, choferes, clientes, servicios, asignaciones, usuarios, valorizador, empresas, tipos de servicio).
+- Puede iniciar/cerrar rutas y agregar/corregir puntos y gastos **solo** para chóferes y camiones autorizados (derivados de `subadmin_camiones` y su historial de asignaciones/viajes).
+- Las APIs de lectura (`stats`, `viajes`, `informes`, `informes/puntos`, `resumen-diario`) filtran por los camiones asignados al subadmin.
+- **Ve los gastos completos de sus camiones** (es personal de la empresa, no del cliente): informes y resumen diario incluyen todos los tipos de gasto, igual que el admin, pero acotados a sus camiones. La restricción de “cliente sin gastos” no aplica al subadmin.
 
 ### Multi-usuario por Cliente
 - Tabla `cliente_usuarios` (cliente_id, usuario_id): relación muchos a muchos entre clientes y usuarios de login.
@@ -129,12 +147,6 @@
   1. Admin crea una **asignación nueva** (chofer + camión nuevo + mismo servicio).
   2. Admin **desactiva** la asignación vieja (badge "Activo" → "Inactivo"). Queda como historial.
 - **Los informes y el resumen diario no se afectan**: filtran por `empresa_id` + rango de fechas + estado, **no por camión** (el filtro por camión es opcional). Un mes con rutas de dos camiones distintos se agrega automáticamente en totales, detalle y valorización; el detalle muestra la patente de cada viaje para identificar el camión.
-
-### Subadmin (solo lectura, por camión)
-- Rol `subadmin` dentro de una empresa; el admin le asigna camiones en `subadmin_camiones`.
-- Accede a `/admin/dashboard`, `/admin/rutas` y `/admin/reportes`; no a gestión (camiones, choferes, clientes, servicios, asignaciones, usuarios, valorizador, empresas, tipos de servicio).
-- Las APIs de lectura (`stats`, `viajes`, `informes`, `informes/puntos`, `resumen-diario`) filtran por los camiones asignados al subadmin.
-- **Ve los gastos completos de sus camiones** (es personal de la empresa, no del cliente): informes y resumen diario incluyen todos los tipos de gasto, igual que el admin, pero acotados a sus camiones. La restricción de “cliente sin gastos” no aplica al subadmin.
 
 ### Rutas por Rol
 - `/superadmin/*` → solo superadmin
@@ -187,3 +199,5 @@
 | 2026-11-09 | El bucket `guias` debe mantener PDF y límite de 5 MB | Las guías pueden ser documentos; la restricción se aplica en `/api/upload` y en `storage.buckets` |
 | 2026-11-10 | Subadmin por empresa con alcance por camiones asignados (`subadmin_camiones`) | Permite delegar rutas/reportes sin exponer gestión ni datos de otros camiones |
 | 2026-11-10 | El chofer selecciona el camión al iniciar (múltiples asignaciones activas) y el servidor valida la asignación | Hay días en que el chofer sale en otro camión; se evita iniciar con camiones no asignados |
+| 2026-11-27 | Registro en nombre de un chófer (`/admin/registros`) para admin y subadmin | Permite poner al día datos atrasados sin compartir cuentas; el subadmin queda acotado a sus camiones y chóferes autorizados |
+| 2026-11-27 | Los gestores pueden agregar puntos y gastos a rutas cerradas | El admin necesita completar registros que el chófer cerró sin toda la información; el chofer mantiene la regla de captura dentro del período de la ruta |

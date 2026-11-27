@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCamionesSubadmin } from '@/lib/subadmin'
 import type { FlujoServicio, SesionUsuario, Viaje } from '@/types/database'
 
 export async function getViajeAcceso(session: SesionUsuario, viajeId: string) {
@@ -22,6 +23,16 @@ export async function getViajeAcceso(session: SesionUsuario, viajeId: string) {
       .single()
 
     if (!chofer || chofer.id !== viaje.chofer_id) {
+      return { error: 'No autorizado', status: 403 } as const
+    }
+  } else if (session.rol === 'subadmin') {
+    if (viaje.empresa_id !== session.empresa_id) {
+      return { error: 'No autorizado', status: 403 } as const
+    }
+
+    const camiones = await getCamionesSubadmin(supabase, session)
+
+    if (!camiones || !camiones.includes(viaje.camion_id)) {
       return { error: 'No autorizado', status: 403 } as const
     }
   } else if (viaje.empresa_id !== session.empresa_id) {

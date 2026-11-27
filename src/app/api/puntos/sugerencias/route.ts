@@ -3,10 +3,11 @@ import { errorResponse } from '@/lib/api-error'
 import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizeText } from '@/lib/utils'
+import { getCamionesSubadmin } from '@/lib/subadmin'
 
 export async function GET(request: Request) {
   try {
-    const session = await requireRole(['chofer', 'admin', 'superadmin'])
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
     const { searchParams } = new URL(request.url)
 
@@ -73,6 +74,25 @@ export async function GET(request: Request) {
       }
 
       if (!permitido) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      }
+    }
+
+    if (session.rol === 'subadmin') {
+      const camiones = await getCamionesSubadmin(supabase, session)
+
+      if (!camiones || camiones.length === 0) {
+        return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      }
+
+      const { count } = await supabase
+        .from('viajes')
+        .select('id', { count: 'exact', head: true })
+        .eq('empresa_id', session.empresa_id)
+        .eq('cliente_id', clienteId)
+        .in('camion_id', camiones)
+
+      if (!count) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
       }
     }

@@ -26,7 +26,7 @@ function nombreArchivo(file: File): string {
 
 export async function POST(request: Request) {
   try {
-    await requireRole(['chofer', 'admin', 'superadmin'])
+    await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabaseAdmin = createAdminClient()
 
     const formData = await request.formData()

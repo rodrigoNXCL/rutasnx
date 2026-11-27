@@ -19,7 +19,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; puntoId: string }> }
 ) {
   try {
-    const session = await requireRole(['chofer', 'admin', 'superadmin'])
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
     const { id, puntoId } = await params
 
@@ -213,7 +213,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; puntoId: string }> }
 ) {
   try {
-    const session = await requireRole(['chofer', 'admin', 'superadmin'])
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
     const { id, puntoId } = await params
 

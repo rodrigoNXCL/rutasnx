@@ -1,33 +1,17 @@
 import { NextResponse } from 'next/server'
 import { errorResponse } from '@/lib/api-error'
-import { requireChofer } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getViajeAcceso } from '@/lib/viaje-access'
 import type { Database } from '@/types/database'
-
-async function getChoferOwner(): Promise<{ supabase: ReturnType<typeof createAdminClient>; chofer: { id: string } | null }> {
-  const session = await requireChofer()
-  const supabase = createAdminClient()
-
-  const { data: chofer } = await supabase
-    .from('choferes')
-    .select('id')
-    .eq('usuario_id', session.id)
-    .single()
-
-  return { supabase, chofer }
-}
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { supabase, chofer } = await getChoferOwner()
-
-    if (!chofer) {
-      return NextResponse.json({ error: 'Chofer no encontrado' }, { status: 404 })
-    }
-
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
+    const supabase = createAdminClient()
     const { id } = await params
 
     const { data: gasto } = await supabase
@@ -40,15 +24,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 })
     }
 
-    const { data: viaje } = await supabase
-      .from('viajes')
-      .select('id')
-      .eq('id', gasto.viaje_id)
-      .eq('chofer_id', chofer.id)
-      .single()
+    const acceso = await getViajeAcceso(session, gasto.viaje_id)
 
-    if (!viaje) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if ('error' in acceso) {
+      return NextResponse.json({ error: acceso.error }, { status: acceso.status })
     }
 
     const body = await request.json()
@@ -81,12 +60,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { supabase, chofer } = await getChoferOwner()
-
-    if (!chofer) {
-      return NextResponse.json({ error: 'Chofer no encontrado' }, { status: 404 })
-    }
-
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
+    const supabase = createAdminClient()
     const { id } = await params
 
     const { data: gasto } = await supabase
@@ -99,15 +74,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 })
     }
 
-    const { data: viaje } = await supabase
-      .from('viajes')
-      .select('id')
-      .eq('id', gasto.viaje_id)
-      .eq('chofer_id', chofer.id)
-      .single()
+    const acceso = await getViajeAcceso(session, gasto.viaje_id)
 
-    if (!viaje) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if ('error' in acceso) {
+      return NextResponse.json({ error: acceso.error }, { status: acceso.status })
     }
 
     const { error } = await supabase.from('gastos').delete().eq('id', id)

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { errorResponse } from '@/lib/api-error'
-import { requireChofer } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getViajeAcceso } from '@/lib/viaje-access'
 
 export async function POST(request: Request) {
   try {
-    const session = await requireChofer()
+    const session = await requireRole(['chofer', 'admin', 'superadmin', 'subadmin'])
     const supabase = createAdminClient()
 
     const body = await request.json()
@@ -15,24 +16,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
     }
 
-    const { data: viaje } = await supabase
-      .from('viajes')
-      .select('id, empresa_id')
-      .eq('id', viaje_id)
-      .single()
+    const acceso = await getViajeAcceso(session, viaje_id)
 
-    if (!viaje) {
-      return NextResponse.json({ error: 'Viaje no encontrado' }, { status: 404 })
-    }
-
-    if (viaje.empresa_id !== session.empresa_id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    if ('error' in acceso) {
+      return NextResponse.json({ error: acceso.error }, { status: acceso.status })
     }
 
     const { data: gasto, error: errorGasto } = await supabase
       .from('gastos')
       .insert({
-        empresa_id: session.empresa_id,
+        empresa_id: acceso.viaje.empresa_id,
         viaje_id,
         tipo,
         monto,
