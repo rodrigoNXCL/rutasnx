@@ -420,7 +420,13 @@ export default function PuntosRuta({ viajeId, clienteId, kmInicio, soloEdicion =
 
           if (!res.ok) {
             const data = await res.json().catch(() => ({}))
-            setSyncError(data.error || 'No se pudo enviar el punto. Quedó pendiente para reintentar.')
+            const mensaje = data.error || 'No se pudo enviar el punto. Quedó pendiente para reintentar.'
+
+            setSyncError(
+              data.error === 'La ruta ya fue cerrada'
+                ? 'La ruta ya está cerrada y este punto quedó fuera del período de la ruta. Puedes descartarlo o pedir al administrador que lo agregue.'
+                : mensaje
+            )
             break
           }
 

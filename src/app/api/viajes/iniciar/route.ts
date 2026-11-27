@@ -112,6 +112,26 @@ export async function POST(request: Request) {
 
     if (errorViaje) {
       if (errorViaje.code === '23505') {
+        // Reintento de inicio (doble envío o respuesta perdida): si la ruta
+        // abierta es la misma del chofer/camión/servicio, se devuelve en vez
+        // de dejar al usuario bloqueado.
+        let existenteQuery = supabase
+          .from('viajes')
+          .select('*')
+          .eq('chofer_id', chofer.id)
+          .eq('camion_id', camion_id)
+          .eq('estado', 'en_curso')
+
+        if (servicio_id) {
+          existenteQuery = existenteQuery.eq('servicio_id', servicio_id)
+        }
+
+        const { data: existente } = await existenteQuery.maybeSingle()
+
+        if (existente) {
+          return NextResponse.json(existente)
+        }
+
         return NextResponse.json(
           { error: 'Ya tienes una ruta abierta o el camión ya está en uso' },
           { status: 400 }

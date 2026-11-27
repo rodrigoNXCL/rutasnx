@@ -108,7 +108,21 @@ export async function POST(
       )
     }
 
-    if (acceso.viaje.estado !== 'en_curso') {
+    // Una ruta cerrada puede recibir puntos que quedaron pendientes en el
+    // dispositivo, siempre que hayan sido capturados mientras estaba abierta
+    // (sincronización offline tardía). Se tolera un margen por desfase de reloj.
+    const MARGEN_CIERRE_MS = 60 * 60 * 1000
+    const capturadoAt = captured_at ? new Date(captured_at) : null
+    const iniciadoAt = acceso.viaje.iniciado_at ? new Date(acceso.viaje.iniciado_at) : null
+    const cerradoAt = acceso.viaje.cerrado_at ? new Date(acceso.viaje.cerrado_at) : null
+
+    const capturadoEnRuta =
+      capturadoAt !== null &&
+      !Number.isNaN(capturadoAt.getTime()) &&
+      (iniciadoAt === null || capturadoAt.getTime() >= iniciadoAt.getTime()) &&
+      (cerradoAt === null || capturadoAt.getTime() <= cerradoAt.getTime() + MARGEN_CIERRE_MS)
+
+    if (acceso.viaje.estado !== 'en_curso' && !capturadoEnRuta) {
       return NextResponse.json(
         { error: 'La ruta ya fue cerrada' },
         { status: 400 }

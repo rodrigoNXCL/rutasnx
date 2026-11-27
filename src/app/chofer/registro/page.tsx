@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import PuntosRuta from './PuntosRuta'
+import { listarPuntosOffline } from '@/lib/offline-queue'
 
 interface TipoServicio {
   id: string
@@ -402,6 +403,23 @@ export default function ChoferRegistro() {
     if (kmTermino < kmInicio) {
       setError('Km término debe ser mayor o igual a km inicio')
       return
+    }
+
+    if (esPuntos) {
+      try {
+        const pendientes = (await listarPuntosOffline()).filter(
+          (punto) => punto.viaje_id === viajeActual.id
+        )
+
+        if (pendientes.length > 0) {
+          setError(
+            `Tienes ${pendientes.length} punto${pendientes.length !== 1 ? 's' : ''} pendiente${pendientes.length !== 1 ? 's' : ''} de sincronizar. Sincroniza antes de cerrar la ruta.`
+          )
+          return
+        }
+      } catch {
+        // IndexedDB no disponible: continuar con el cierre
+      }
     }
 
     setSaving(true)

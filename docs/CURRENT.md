@@ -66,6 +66,7 @@
 | 2026-11-14 | Correcciones: acceso de chofer, subadmin solo lectura, 401/403, dedupe/selector de camión | Desplegada | Version ID `95cffdcf-f90c-4e39-bbf7-425c9fb2154f` |
 | 2026-11-14 | Informe de puntos: separador con subtotal de km al cambiar de camión (vista y PDF) | Desplegada | Version ID `2697de05-2823-4e52-9294-0454d36cf2ed` |
 | 2026-11-25 | Informe de puntos: total por día y camión (km + documentos) en vista y PDF | Desplegada | Version ID `76daf956-02a7-406d-8cdd-365f8924951c` |
+| 2026-11-27 | Sincronización offline: puntos pendientes se aceptan en rutas ya cerradas si fueron capturados dentro del período de la ruta; inicio de ruta idempotente; bloqueo de cierre con puntos pendientes | Desplegada | Version ID `cfced408-cf1c-44d8-89e1-18271a901d2d` |
 | 2026-11-06 | PWA offline, sincronización idempotente y cierre de informes | Completado | Commit `b2b8e87` |
 | 2026-11-08 | Fix spinner infinito en `/chofer/registro` | Completado | Commit `13fa608` |
 
@@ -197,7 +198,7 @@ Reglas:
 - **URL**: https://nxrutas.devnx-trans.workers.dev
 - **Plataforma**: Cloudflare Workers (vinext)
 - **Repo**: https://github.com/rodrigoNXCL/rutasnx
-- **Último deploy**: 2026-11-25, Version ID `76daf956-02a7-406d-8cdd-365f8924951c` (informe de puntos con totales por día/camión: km y documentos)
+- **Último deploy**: 2026-11-27, Version ID `cfced408-cf1c-44d8-89e1-18271a901d2d` (sincronización offline de puntos en rutas cerradas e inicio de ruta idempotente)
 
 ## Historial de Cambios
 
@@ -232,6 +233,7 @@ Detalles detectados durante las pruebas (2026-11-14) para corregir de forma orde
 | 11 | `subadmin_camiones` tiene RLS habilitado sin políticas (acceso solo vía service role). Documentar/definir políticas si se usa cliente autenticado. | `supabase/migrations/20261110_subadmin.sql` | Nota |
 | 12 | Bucket `guias` es público: evaluar bucket privado con URLs firmadas. | Supabase Storage | Pendiente (decisión) |
 | 13 | El chofer veía una patente “repetida” con badge Fruta: la UI mostraba las tarjetas de selección y además un panel del camión seleccionado. Se eliminó el panel duplicado y las tarjetas ahora muestran patente, marca, servicio y tipo; la API deduplica asignaciones idénticas (camión+servicio). | `src/app/chofer/registro/page.tsx`, `src/app/api/chofer/asignacion/route.ts` | Desplegado |
+| 14 | Ruta CTYL-61 del 26/11/2026 quedó con un punto pendiente en el teléfono porque la ruta se cerró antes de sincronizarlo y el servidor respondía “La ruta ya fue cerrada”. Ahora `POST /api/viajes/[id]/puntos` acepta puntos capturados dentro del período de la ruta (`iniciado_at`–`cerrado_at`) aunque esté cerrada; el inicio de ruta es idempotente ante reintentos; y el cierre se bloquea si quedan puntos pendientes en el dispositivo. | `src/app/api/viajes/[id]/puntos/route.ts`, `src/app/api/viajes/iniciar/route.ts`, `src/app/chofer/registro/page.tsx`, `src/app/chofer/registro/PuntosRuta.tsx` | Desplegado |
 
 **Criterios confirmados:**
 - El **subadmin pertenece a la empresa** (no al cliente): **sí ve los gastos** de sus camiones asignados (informes y resumen diario con todos los tipos de gasto), acotado por `subadmin_camiones`.
